@@ -1,0 +1,17 @@
+/*
+comment 1
+*/
+
+int main()
+{
+// line comment
+/*
+  block comment
+*/
+  int i = 1;
+}
+
+/*
+  comment 2
+*/
+int a(){}
