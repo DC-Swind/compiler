@@ -15,7 +15,7 @@ clean:
 	rm -f parser lex.yy.c syntax.tab.c syntax.tab.h syntax.output
 
 play:	parser
-	./parser test.txt
+	./parser test.cmm
 pull:
 	-@git pull origin master
 push:

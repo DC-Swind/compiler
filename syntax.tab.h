@@ -72,9 +72,7 @@ extern int yydebug;
     STRUCT = 282,
     RETURN = 283,
     TYPE = 284,
-    LCOMMENT = 285,
-    RCOMMENT = 286,
-    LOWER_THAN_ELSE = 287
+    LOWER_THAN_ELSE = 285
   };
 #endif
 

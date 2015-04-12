@@ -19,7 +19,6 @@ int occurError = 0;
 %token LP RP LB RB LC RC
 %token IF ELSE WHILE STRUCT RETURN TYPE
 
-%token LCOMMENT RCOMMENT
 
 %right ASSIGNOP
 %left OR
@@ -36,11 +35,11 @@ int occurError = 0;
 %%
 
 Program : ExtDefList {$$ = createNode(@$.first_line,"Program",1,$1); if (occurError == 0) printTree($$,0);}
-  | LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"Program",1,$3); if (occurError == 0)printTree($$,0);}
+  /*| LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"Program",1,$3); if (occurError == 0)printTree($$,0);}*/
   | error ExtDefList {}
 ;
 ExtDefList : ExtDef ExtDefList {$$ = createNode(@$.first_line,"ExtDefList",2,$1,$2);}
-  | ExtDef LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"ExtDefList",2,$1,$4);}
+  /*| ExtDef LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"ExtDefList",2,$1,$4);}*/
   | {$$ = createNode(@$.first_line,"ExtDefList",0);}
   | ExtDef error ExtDefList {}
 ;
@@ -80,11 +79,10 @@ ParamDec : Specifier VarDec {$$ = createNode(@$.first_line,"ParamDec",2,$1,$2);}
 
 
 CompSt : LC DefList StmtList RC {$$ = createNode(@$.first_line,"CompSt",4,$1,$2,$3,$4);}
-  | LC LCOMMENT RCOMMENT DefList StmtList RC {$$ = createNode(@$.first_line,"CompSt",4,$1,$4,$5,$6);}
+  /*| LC LCOMMENT RCOMMENT DefList StmtList RC {$$ = createNode(@$.first_line,"CompSt",4,$1,$4,$5,$6);}*/
   | LC error DefList StmtList RC {}
 ;
 StmtList : Stmt StmtList {$$ = createNode(@$.first_line,"StmtList",2,$1,$2);}
-  | Stmt LCOMMENT RCOMMENT StmtList {$$ = createNode(@$.first_line,"StmtList",2,$1,$4);}
   | {$$ = createNode(@$.first_line,"StmtList",0);}
   | Stmt error StmtList {}
 ;
@@ -94,12 +92,12 @@ Stmt : Exp SEMI {$$ = createNode(@$.first_line,"Stmt",2,$1,$2);}
   | IF LP Exp RP Stmt  %prec LOWER_THAN_ELSE {$$ = createNode(@$.first_line,"Stmt",5,$1,$2,$3,$4,$5);}
   | IF LP Exp RP Stmt ELSE Stmt {$$ = createNode(@$.first_line,"Stmt",4,$1,$2,$3,$4,$5,$6,$7);}
   | WHILE LP Exp RP Stmt {$$ = createNode(@$.first_line,"Stmt",5,$1,$2,$3,$4,$5);}
-  /*| error SEMI {}*/
+  | Exp error {}  /*ppp*/
 ;
 
 
 DefList : Def DefList {$$ = createNode(@$.first_line,"DefList",2,$1,$2);}
-  | Def LCOMMENT RCOMMENT DefList {$$ = createNode(@$.first_line,"DefList",2,$1,$4);}
+  /*| Def LCOMMENT RCOMMENT DefList {$$ = createNode(@$.first_line,"DefList",2,$1,$4);}*/
   | {$$ = createNode(@$.first_line,"DefList",0);}
   | Def error DefList {}
 ;
@@ -131,8 +129,7 @@ Exp : Exp ASSIGNOP Exp {$$ = createNode(@$.first_line,"Exp",3,$1,$2,$3);}
   | ID {$$ = createNode(@$.first_line,"Exp",1,$1);}
   | INT {$$ = createNode(@$.first_line,"Exp",1,$1);}
   | FLOAT {$$ = createNode(@$.first_line,"Exp",1,$1);}
-  | Exp LB Exp error RB {}
-  /*| error RP {}*/
+  /*| Exp LB Exp error RB {printf("Exp LB Exp error RB.\n");}*/
 ;
 Args : Exp COMMA Args {$$ = createNode(@$.first_line,"Args",3,$1,$2,$3);}
   | Exp {$$ = createNode(@$.first_line,"Args",1,$1);}
@@ -156,8 +153,9 @@ int main(int argc, char** argv){
 
 yyerror(char *msg){
     occurError++;
-    //if (strncmp(msg,"syntax error",max(strlen(msg),12)) != 0)
-    fprintf(stderr,"Error type B at Line %d: %s\n",yylineno,msg);
+    //if (strncmp(msg,"syntax error",max(strlen(msg),12)) == 0)
+        fprintf(stderr,"Error type B at Line %d: %s\n",yylineno,msg);
+    
 }
 
 struct treeNode *createNode(int line,char* name,int n,...){
