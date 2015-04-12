@@ -74,11 +74,11 @@ VarDec : ID {$$ = createNode(@$.first_line,"VarDec",1,$1);}
 FunDec : ID LP VarList RP {$$ = createNode(@$.first_line,"FunDec",4,$1,$2,$3,$4);}
   | ID LP RP {$$ = createNode(@$.first_line,"FunDec",3,$1,$2,$3);}
   | ID LP error RP
-  /*| ID LP VarList {yyyerror("Missing )",@1.first_line);}
+  /*| ID LP VarList {yyyerror("Missing )",@1.first_line);}*/
   | ID LP {yyyerror("Missing )",@1.first_line);}
-  | ID VarList RP {yyyerror("Missing (",@1.first_line);}
+  /*| ID VarList RP {yyyerror("Missing (",@1.first_line);}*/
   | ID RP {yyyerror("Missing (",@1.first_line);}
-*/
+
 ;
 VarList : ParamDec COMMA VarList {$$ = createNode(@$.first_line,"VarList",3,$1,$2,$3);}
   | ParamDec {$$ = createNode(@$.first_line,"VarList",1,$1);}
