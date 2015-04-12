@@ -61,8 +61,9 @@ ELSE else
 WHILE while
 ANYTHING [ _0-9a-zA-Z+!=<>|.;,&?]|{LP}|{RP}|{LB}|{RB}|{LC}|{RC}|{MINUS}
 LINECOMMENT \/\/({ANYTHING}|[*/])*
-LCOMMENT \/\*(\n|({ANYTHING}[*/]*{ANYTHING})|{ANYTHING})*
+LCOMMENT \/\*(\n|({ANYTHING}[*/]{ANYTHING})|{ANYTHING})*
 RCOMMENT \*\/
+MCOMMENT {LCOMMENT}{RCOMMENT}
 %%
 
 
@@ -214,6 +215,9 @@ RCOMMENT \*\/
 {LINECOMMENT} {
     printf("Line %d:(LINECOMMENT , %s)\n",yylineno,yytext);
 }
+{MCOMMENT} {
+    printf("Line %d:(MULCOMMET , %s)\n",yylineno,yytext);
+}
 {LCOMMENT} {
     printf("Line %d:(LCOMMENT , %s)\n",yylineno,yytext);
     setyylval(1,1,"LCOMMENT");
@@ -275,7 +279,6 @@ float floatTofloat(char *s){
     strncpy(a,s,e);
     float aa = atof(a);
     int bb,i;
-    printf("s[e+1] : %c\n",s[e+1]);
     if (s[e+1] == '+'){
         strncpy(b,&s[e+2],strlen(s)-e-1);
         bb = atoi(b);
@@ -289,7 +292,6 @@ float floatTofloat(char *s){
         bb = atoi(b);
         for (i=0; i<bb; i++) aa *= 10;
     }
-    printf("bb : %d\n",bb);
     return aa;
 }
 void setyylval(int type,int tokentype,char* name){
