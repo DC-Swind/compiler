@@ -9,6 +9,7 @@ void printTree(struct treeNode *node,int deep);
 #include <stdarg.h>
 #define max(a,b) (a>b?a:b)
 int occurError = 0;
+void yyyerror(char *msg,int lineno);
 %}
 
 
@@ -46,6 +47,7 @@ ExtDefList : ExtDef ExtDefList {$$ = createNode(@$.first_line,"ExtDefList",2,$1,
 ExtDef : Specifier ExtDecList SEMI {$$ = createNode(@$.first_line,"ExtDef",3,$1,$2,$3);}
   | Specifier SEMI {$$ = createNode(@$.first_line,"ExtDef",2,$1,$2);}  /*But this can not in a Func*/
   | Specifier FunDec CompSt {$$ = createNode(@$.first_line,"ExtDef",3,$1,$2,$3);}
+  | error FunDec CompSt
 ;
 ExtDecList : VarDec {$$ = createNode(@$.first_line,"ExtDecList",1,$1);}
   | VarDec COMMA ExtDecList {$$ = createNode(@$.first_line,"ExtDecList",3,$1,$2,$3);}
@@ -56,6 +58,7 @@ Specifier : TYPE {$$ = createNode(@$.first_line,"Specifier",1,$1);}
   | StructSpecifier {$$ = createNode(@$.first_line,"Specifier",1,$1);}
 ;
 StructSpecifier : STRUCT OptTag LC DefList RC {$$ = createNode(@$.first_line,"StructSpecifier",5,$1,$2,$3,$4,$5);}
+  | STRUCT OptTag LC error DefList RC
   | STRUCT Tag {$$ = createNode(@$.first_line,"StructSpecifier",2,$1,$2);}
 ;
 OptTag : ID {$$ = createNode(@$.first_line,"OptTag",1,$1);}
@@ -70,6 +73,12 @@ VarDec : ID {$$ = createNode(@$.first_line,"VarDec",1,$1);}
 ;
 FunDec : ID LP VarList RP {$$ = createNode(@$.first_line,"FunDec",4,$1,$2,$3,$4);}
   | ID LP RP {$$ = createNode(@$.first_line,"FunDec",3,$1,$2,$3);}
+  | ID LP error RP
+  /*| ID LP VarList {yyyerror("Missing )",@1.first_line);}
+  | ID LP {yyyerror("Missing )",@1.first_line);}
+  | ID VarList RP {yyyerror("Missing (",@1.first_line);}
+  | ID RP {yyyerror("Missing (",@1.first_line);}
+*/
 ;
 VarList : ParamDec COMMA VarList {$$ = createNode(@$.first_line,"VarList",3,$1,$2,$3);}
   | ParamDec {$$ = createNode(@$.first_line,"VarList",1,$1);}
@@ -157,7 +166,10 @@ yyerror(char *msg){
         fprintf(stderr,"Error type B at Line %d: %s\n",yylineno,msg);
     
 }
-
+void yyyerror(char *msg,int lineno){
+    occurError++;
+    fprintf(stderr,"Error type B at Line %d: %s\n",lineno,msg);
+}
 struct treeNode *createNode(int line,char* name,int n,...){
     struct treeNode *node = (struct treeNode *)malloc(sizeof(struct treeNode));
     node->lineno = line;
