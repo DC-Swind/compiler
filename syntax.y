@@ -10,6 +10,10 @@ void printTree(struct treeNode *node,int deep);
 #define max(a,b) (a>b?a:b)
 int occurError = 0;
 void yyyerror(char *msg,int lineno);
+
+struct varList{
+    int type;
+};
 %}
 
 
@@ -145,7 +149,10 @@ Args : Exp COMMA Args {$$ = createNode(@$.first_line,"Args",3,$1,$2,$3);}
 ;
 
 %%
-
+int checkmean(){
+    
+    return 0;
+}
 int main(int argc, char** argv){
     if (argc > 1){
         if(!(yyin = fopen(argv[1],"r"))){
@@ -156,6 +163,7 @@ int main(int argc, char** argv){
     //yyrestart(f);
     //yydebug = 1;
     yyparse();
+    if (occurError == 0) checkmean();
     return 0;
 }
 
