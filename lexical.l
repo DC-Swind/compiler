@@ -3,16 +3,7 @@
 #include <stdio.h>
 #include "syntax.tab.h"
 
-struct treeNode{
-    int lineno;
-    int type; //1-stop and no value, 2 - stop and have value, 3 - int ,4 - float, 5-no stop
-    int tokentype;
-    char * name;
-    char * value;
-    int sonN;
-    struct treeNode *sonlist;
-    struct treeNode *next;
-};
+#include "common.h"
 extern int occurError;
 void setyylval(int type,int tokentype,char* name);
 int yycolumn = 1;
@@ -72,146 +63,146 @@ MCOMMENT {LCOMMENT}{RCOMMENT}
 
 {STRUCT} {
     //printf("Line %d:(STRUCT , %s)\n",yylineno,yytext);
-    setyylval(1,1,"STRUCT");
+    setyylval(1,25,"STRUCT");
     return STRUCT;
 }
 {RETURN} {
     //printf("Line %d:(RETURN , %s)\n",yylineno,yytext);
-    setyylval(1,1,"RETURN");
+    setyylval(1,26,"RETURN");
     return RETURN;
 }
 {IF} {
     //printf("Line %d:(IF , %s)\n",yylineno,yytext);
-    setyylval(1,1,"IF");
+    setyylval(1,22,"IF");
     return IF;
 }
 {ELSE} {
     //printf("Line %d:(ELSE , %s)\n",yylineno,yytext);
-    setyylval(1,1,"ELSE");
+    setyylval(1,23,"ELSE");
     return ELSE;
 }
 {WHILE} {
     //printf("Line %d:(WHILE , %s)\n",yylineno,yytext); 
-    setyylval(1,1,"WHILE");
+    setyylval(1,24,"WHILE");
     return WHILE;
 }
 {TYPE} {
     //printf("Line %d:(TYPE , %s)\n",yylineno,yytext);
-    setyylval(2,2,"TYPE");
+    setyylval(2,27,"TYPE");
     return TYPE;
 }
 
 {STAR} {
     //printf("Line %d:(STAR , %s)\n",yylineno,yytext);
-    setyylval(1,1,"STAR");
+    setyylval(1,6,"STAR");
     return STAR;
 }
 {DIV} {
     //printf("Line %d:(DIV , %s)\n",yylineno,yytext);
-    setyylval(1,1,"DIV");
+    setyylval(1,7,"DIV");
     return DIV;
 }
 {PLUS} {
     //printf("Line %d:(PLUS , %s)\n",yylineno,yytext);
-    setyylval(1,1,"PLUS");
+    setyylval(1,4,"PLUS");
     return PLUS;
 }
 {MINUS} {
     //printf("Line %d:(MINUS , %s)\n",yylineno,yytext);
-    setyylval(1,1,"MINUS");
+    setyylval(1,5,"MINUS");
     return MINUS;
 }
 {ASSIGNOP} {
     //printf("Line %d:(ASSIGNOP , %s)\n",yylineno,yytext);
-    setyylval(1,1,"ASSIGNOP");
+    setyylval(1,11,"ASSIGNOP");
     return ASSIGNOP;
 }
 
 {ID} {
     //printf("Line %d:(ID , %s)\n",yylineno,yytext);
-    setyylval(2,2,"ID");
+    setyylval(2,3,"ID");
     return ID;
 }
 {INT} { 
     //printf("Line %d:(INT , %s)\n",yylineno,yytext);
-    setyylval(3,3,"INT");
+    setyylval(3,1,"INT");
     return INT;
 }
 {FLOAT} {
     //printf("Line %d:(FLOAT , %s)\n",yylineno,yytext); 
-    setyylval(4,4,"FLOAT");
+    setyylval(4,2,"FLOAT");
     return FLOAT;
 }
 {SEMI} {
     //printf("Line %d:(SEMI , %s)\n",yylineno,yytext);
-    setyylval(1,1,"SEMI");
+    setyylval(1,13,"SEMI");
     return SEMI;
 }
 {space}+ {}
 \n { yycolumn = 1;}
 {COMMA} {
     //printf("Line %d:(, , %s)\n",yylineno,yytext);
-    setyylval(1,1,"COMMA");
+    setyylval(1,14,"COMMA");
     return COMMA;
 }
 {AND} {
     //printf("Line %d:(AND , %s)\n",yylineno,yytext);
-    setyylval(1,1,"AND");
+    setyylval(1,8,"AND");
     return AND;
 }
 {OR} {
     //printf("Line %d:(OR , %s)\n",yylineno,yytext);
-    setyylval(1,1,"OR");
+    setyylval(1,9,"OR");
     return OR;
 }
 
 "(" {
     //printf("Line %d:(LP , %s)\n",yylineno,yytext);
-    setyylval(1,1,"LP");
+    setyylval(1,16,"LP");
     return LP;
 }
 
 ")" {
     //printf("Line %d:(RP , %s)\n",yylineno,yytext);
-    setyylval(1,1,"RP");
+    setyylval(1,17,"RP");
     return RP;
 }
 
 "{" {
     //printf("Line %d:(LC , %s)\n",yylineno,yytext);
-    setyylval(1,1,"LC");
+    setyylval(1,20,"LC");
     return LC;
 }
 
 "}" {
     //printf("Line %d:(RC , %s)\n",yylineno,yytext);
-    setyylval(1,1,"RC");
+    setyylval(1,21,"RC");
     return RC;
 }
 {NOT}  {
     //printf("Line %d:(NOT , %s)\n",yylineno,yytext);
-    setyylval(1,1,"NOT");
+    setyylval(1,10,"NOT");
     return NOT;
 }
 {RELOP} {
     //printf("Line %d:(RELOP , %s)\n",yylineno,yytext);
-    setyylval(1,1,"RELOP");
+    setyylval(1,12,"RELOP");
     return RELOP;
 }
 
 {DOT} {
     //printf("Line %d:(DOT , %s)\n",yylineno,yytext);
-    setyylval(1,1,"DOT");
+    setyylval(1,15,"DOT");
     return DOT;
 }
 "[" {
     //printf("Line %d:(LB , %s)\n",yylineno,yytext);
-    setyylval(1,1,"LB");
+    setyylval(1,18,"LB");
     return LB;
 }
 "]" {
     //printf("Line %d:(RB , %s)\n",yylineno,yytext);
-    setyylval(1,1,"RB");
+    setyylval(1,19,"RB");
     return RB;
 }
 

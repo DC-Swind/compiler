@@ -1,5 +1,5 @@
 %{
-struct treeNode;
+#include "common.h"
 struct treeNode *createNode(int line,char* name,int n,...);
 void printTree(struct treeNode *node,int deep);
 #define YYSTYPE struct treeNode *
@@ -10,19 +10,16 @@ void printTree(struct treeNode *node,int deep);
 #define max(a,b) (a>b?a:b)
 int occurError = 0;
 void yyyerror(char *msg,int lineno);
-
-struct varList{
-    int type;
-};
+int checkmean(struct treeNode* root);
 %}
 
 
-%token INT FLOAT ID
-%token PLUS MINUS STAR DIV
-%token AND OR NOT ASSIGNOP RELOP
-%token SEMI COMMA DOT
-%token LP RP LB RB LC RC
-%token IF ELSE WHILE STRUCT RETURN TYPE
+%token INT FLOAT ID/*1 2 3*/
+%token PLUS MINUS STAR DIV/*4 5 6 7*/
+%token AND OR NOT ASSIGNOP RELOP /*8 9 10 11 12*/
+%token SEMI COMMA DOT/*13 14 15*/
+%token LP RP LB RB LC RC/*16 17 18 19 20 21*/
+%token IF ELSE WHILE STRUCT RETURN TYPE/*22 23 24 25 26 27*/
 
 
 %right ASSIGNOP
@@ -39,7 +36,7 @@ struct varList{
 %nonassoc ELSE 
 %%
 
-Program : ExtDefList {$$ = createNode(@$.first_line,"Program",1,$1); if (occurError == 0) printTree($$,0);}
+Program : ExtDefList {$$ = createNode(@$.first_line,"Program",1,$1); if (occurError == 0) {printTree($$,0); checkmean($$);}}
   /*| LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"Program",1,$3); if (occurError == 0)printTree($$,0);}*/
   | error ExtDefList {}
 ;
@@ -52,6 +49,7 @@ ExtDef : Specifier ExtDecList SEMI {$$ = createNode(@$.first_line,"ExtDef",3,$1,
   | Specifier SEMI {$$ = createNode(@$.first_line,"ExtDef",2,$1,$2);}  /*But this can not in a Func*/
   | Specifier FunDec CompSt {$$ = createNode(@$.first_line,"ExtDef",3,$1,$2,$3);}
   | error FunDec CompSt
+  | Specifier FunDec SEMI {$$ = createNode(@$.first_line,"ExtDef",3,$1,$2,$3);}
 ;
 ExtDecList : VarDec {$$ = createNode(@$.first_line,"ExtDecList",1,$1);}
   | VarDec COMMA ExtDecList {$$ = createNode(@$.first_line,"ExtDecList",3,$1,$2,$3);}
@@ -149,10 +147,7 @@ Args : Exp COMMA Args {$$ = createNode(@$.first_line,"Args",3,$1,$2,$3);}
 ;
 
 %%
-int checkmean(){
-    
-    return 0;
-}
+
 int main(int argc, char** argv){
     if (argc > 1){
         if(!(yyin = fopen(argv[1],"r"))){
@@ -163,7 +158,6 @@ int main(int argc, char** argv){
     //yyrestart(f);
     //yydebug = 1;
     yyparse();
-    if (occurError == 0) checkmean();
     return 0;
 }
 
@@ -183,6 +177,7 @@ struct treeNode *createNode(int line,char* name,int n,...){
     node->lineno = line;
     node->name = malloc(strlen(name)+1);
     node->type = 5;
+    node->tokentype = 0;
     strcpy(node->name,name);
     node->sonlist = NULL;
     node->next = NULL;
