@@ -1,15 +1,25 @@
 #ifndef _COMMON__H_
 #define _COMMON__H_
 
-struct varList{
+struct Var{
     int type;//1-int,2-float,3-struct,4-intarray,5-floatarray,6-structarray,7-{
+    char *tname;//type name. int float struct a ...
     int defline;
     int deadline;
-    char *name;
+    char *name;//var name
     int value; 
-    struct varList *father;
-    struct varList *sonlist;
-    struct varList *next;
+    int arraylen;
+    struct Var *father;
+    struct Var *sonlist;
+    struct Var *next;
+};
+struct Struct{
+    int type; //1-has name, 2-has no name
+    char *name;
+    int defline;
+    
+    struct Var *feild;
+    struct Struct *next;
 };
 struct funcList{
     int type;

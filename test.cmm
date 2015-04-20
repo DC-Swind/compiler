@@ -1,9 +1,20 @@
 int i,j;
-int k[2][3];
+int i;
+
+int f,k[2][3],ff;
+int k;
 struct a{
     int ab;
 };
 struct a c;
+struct d{
+    int aaaa;
+    int bbbb = 3;
+    struct{
+        int a;
+    }cf;
+}af;
+/*
 struct {
     int ab;
 }cc;
@@ -21,3 +32,4 @@ int main(int aa)
   if (i == 5) j = j + 1; else j = j + 2;
   return 0;
 }
+*/
