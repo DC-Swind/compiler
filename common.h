@@ -7,7 +7,7 @@ struct Var{
     int defline;
     int deadline;
     char *name;//var name
-    int value; 
+    float value; 
     int arraylen;
     struct Var *father;
     struct Var *sonlist;

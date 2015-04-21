@@ -7,12 +7,15 @@ struct Var* varlist;
 struct Var* varlistp;
 struct Struct* structlist;
 struct Struct* structlistp;
+//匿名结构体编号
+int structname = 1;
 //-----------------功能函数，暂时写在这里，后面移到另一个文件-----
 int converttype(char* type){
     if (strcmp(type,"int") == 0) return 1;
     if (strcmp(type,"float") == 0) return 2;
     return 3;
 }
+//varlist符号表查repeat
 int checkrepeat(char *name){
     struct Var* p = varlist;
     while(p != NULL){
@@ -21,7 +24,12 @@ int checkrepeat(char *name){
     }
     return 0;
 }
+//structlist结构体表查repeat
 int checkrepeat_struct(){
+    return 0;
+}
+//structfeild符号表查repeat
+int checkrepeat_inlist(char* name,struct Var* list){
     return 0;
 }
 //----------------------------------------------------------------
@@ -30,11 +38,74 @@ int checkrepeat_struct(){
 int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
     //node is DecList,rtlist 是将这些Dec插入到哪个Varlist
     //这个跟dfsExtDec差不多，不过注意赋值
+
+    //找到list中最后一个元素
+    if (rtlist == NULL) return 0;
+    struct Var* rtlistp = rtlist;
+    while(rtlistp->next !=NULL) rtlistp = rtlistp->next;
+    
+    struct treeNode* dec = node->sonlist;
+    if (dec == NULL) return 0;
+    // insert dec  dec is a single or array
+    if (strcmp(dec->sonlist->sonlist->name,"ID") == 0){
+        if (checkrepeat_inlist(dec->sonlist->sonlist->value,rtlist) != 0){
+            //语义错误
+            printf("Error type x at Line %d: Redefined variable \"%s\" in struct.\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
+        }else{
+            rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
+            rtlistp = rtlistp->next;
+            rtlistp->type = converttype(type);
+            rtlistp->tname = type;
+            rtlistp->defline = dec->sonlist->sonlist->lineno;
+            rtlistp->deadline = -1;
+            rtlistp->name = dec->sonlist->sonlist->value;
+            rtlistp->value = 0;
+            if (dec->sonlist->next != NULL && strcmp(dec->sonlist->next->name,"ASSIGNOP")==0){
+                if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
+                if (rtlist->type == 2) rtlistp->value = atof(dec->sonlist->next->next->sonlist->value);
+}
+            rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+        }
+    }else{
+        //array
+        struct treeNode* tmp = dec;
+        while(strcmp(tmp->sonlist->name,"ID") != 0) tmp = tmp->sonlist;
+        if (checkrepeat_inlist(tmp->sonlist->value,rtlist) != 0){
+            printf("Error type x at Line %d: Redefined variable \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
+        }else{
+            rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
+            rtlistp = rtlistp->next;
+            rtlistp->type = converttype(type)+3;
+            rtlistp->tname = type;
+            rtlistp->defline = tmp->sonlist->lineno;
+            rtlistp->deadline = -1;
+            rtlistp->name = tmp->sonlist->value;
+            rtlistp->value = 0;
+            rtlistp->arraylen = atoi(dec->sonlist->sonlist->next->next->value);
+            rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+            
+            struct treeNode* temp = dec->sonlist->sonlist->sonlist;
+            struct Var* varlistq = rtlistp;
+            while(temp != tmp->sonlist){
+                varlistq->sonlist = (struct Var*)malloc(sizeof(struct Var));
+                varlistq = varlistq->sonlist;
+                varlistq->type = varlistp->type;
+                varlistq->tname = varlistp->tname;
+                varlistq->arraylen = atoi(temp->next->next->value);
+                varlistq->father = varlistq->next = varlistq->sonlist = NULL;
+
+                temp = temp->sonlist;
+            }
+        }
+    }
+    if (dec->next != NULL && strcmp(dec->next->name,"COMMA") == 0){
+        dfsDecList(dec->next->next,type,rtlist);
+    }
+    return 0;
 }
 int dfsDef(struct treeNode* node,struct Var* rtlist){
     //node is Def, rtlist是将这些Def插入到哪个varlist
     struct treeNode* def = node;
-
     //Specifier
     struct treeNode* specifier = def->sonlist;
     char* type = NULL; 
@@ -47,7 +118,7 @@ int dfsDef(struct treeNode* node,struct Var* rtlist){
 
         }else{
             //struct 定义,type赋值时要注意opttag可以是匿名的
-            dfsStructDec(specifier->sonlist);
+            dfsStructDec(specifier->sonlist,&type);
             //type = 
         }
     }
@@ -137,24 +208,36 @@ int dfsFunDec(struct treeNode* node){
     return 0;
 }
 //结构体定义
-int dfsStructDec(struct treeNode* node){
+int dfsStructDec(struct treeNode* node,char **typename){
     //node is StructSpecifier
     char *name = NULL;
     int type;
     if (node->sonlist->next->sonN == 0){
         //匿名结构体
         type = 2; 
+        name = (char*)malloc(sizeof(char)*20);
+        strncpy(name,"$struct$",sizeof("$struct$"));
+        sprintf(name,"%s%d",name,structname);
+        structname += 1;
     }else{
         //非匿名
         type = 1;
         name = node->sonlist->next->sonlist->value;
-    } 
+    }
+    *typename = name;
     if (checkrepeat_struct() == 0){
         structlistp->next = (struct Struct*)malloc(sizeof(struct Struct));
         structlistp = structlistp->next;
         structlistp->type = type;
         structlistp->name = name;
         structlistp->defline = node->lineno;
+        structlistp->feild = (struct Var*)malloc(sizeof(struct Var));
+        //feild初始化一个开始标记为{
+        structlistp->feild->type = 7;
+        structlistp->feild->name = malloc(sizeof("{"));
+        strncpy(structlistp->feild->name,"{",sizeof("{"));
+        structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
+
         dfsDefList(node->sonlist->next->next->next,structlistp->feild); 
     }else{
 
@@ -179,7 +262,7 @@ int dfsExtDef(struct treeNode* node){
 
         }else{
             //struct 定义,type赋值时要注意opttag可以是匿名的
-            dfsStructDec(sonson);
+            dfsStructDec(sonson,&type);
             //type = 
         }
     }
@@ -187,6 +270,7 @@ int dfsExtDef(struct treeNode* node){
     //ExtDecList 全局变量定义 
     son = son->next;
     if (strcmp(son->name,"ExtDecList") == 0){
+        printf("type is %s\n",type);
         dfsExtDec(son,type); 
     }
     //函数定义/声明

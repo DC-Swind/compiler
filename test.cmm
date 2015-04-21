@@ -9,16 +9,17 @@ struct a{
 struct a c;
 struct d{
     int aaaa;
-    int bbbb = 3;
+    int b,bb[11],bbbb = 3;
     struct{
         int a;
     }cf;
 }af;
-/*
+
 struct {
     int ab;
 }cc;
 int z;
+/*
 int main(int aa);
 int main(int aa)
 {
