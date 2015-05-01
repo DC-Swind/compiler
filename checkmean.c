@@ -7,6 +7,9 @@ struct Var* varlist;
 struct Var* varlistp;
 struct Struct* structlist;
 struct Struct* structlistp;
+struct Func* funclist;
+struct Func* funclistp;
+
 //匿名结构体编号
 int structname = 1;
 //-----------------功能函数，暂时写在这里，后面移到另一个文件-----
@@ -30,7 +33,21 @@ int checkrepeat_struct(){
 }
 //structfeild符号表查repeat
 int checkrepeat_inlist(char* name,struct Var* list){
+	struct Var* p = list;
+	while(p != NULL){
+		if (strcmp(p->name,name) == 0) return 1;
+		p = p->next;
+	}
     return 0;
+}
+
+int checkrepeat_func(char* name){
+	struct Func* p = funclist;
+	while(p != NULL){
+		if (strcmp(p->name,name) == 0 && p->type == 1) return 1;
+		p = p->next;
+	}
+	return 0;
 }
 //----------------------------------------------------------------
 //forth level
@@ -129,7 +146,7 @@ int dfsDef(struct treeNode* node,struct Var* rtlist){
         dfsDecList(declist,type,rtlist); 
     }
 
-
+    return 0;
 }
 //结构体内，或函数体内 变量定义
 int dfsDefList(struct treeNode* node,struct Var* rtlist){
@@ -202,10 +219,91 @@ int dfsExtDec(struct treeNode* node,char* type){
     }
     return 0;
 }
-//函数定义
-int dfsFunDec(struct treeNode* node){
-    
-    return 0;
+
+int dfsCompSt(struct treeNode* node){
+	
+	return 0;
+}
+
+
+//函数定义或声明，创建一个Func，将形参提取
+struct Func* dfsFunDec(struct treeNode* node){
+    //node is FunDec
+	struct Func* func = (struct Func*)malloc(sizeof(struct Func));
+	func->defline = node->lineno;
+	//init a feild
+	func->feild = (struct Var*)malloc(sizeof(struct Var));
+	struct Var* feildlistp = func->feild;
+	feildlistp->type = 7;
+    feildlistp->name = malloc(sizeof("{"));
+    strncpy(feildlistp->name,"{",sizeof("{"));
+		
+	func->next = NULL;
+	char *name = node->sonlist->value; //ID:main
+	if (strcmp("RP",node->sonlist->next->next->name) == 0){
+		//没有形参
+	}else{
+		//dfsVarList(node->sonlist->next->next);
+		struct treeNode* varlist = node->sonlist->next->next;
+		while(varlist != NULL){
+			char* type = varlist->sonlist->sonlist->sonlist->value;
+			//son is VarDec
+			struct treeNode* son = varlist->sonlist->sonlist->next;
+			
+			// insert son  son is a single or array
+			if (strcmp(son->sonlist->name,"ID") == 0){
+				if (checkrepeat_inlist(son->sonlist->value,func->feild) != 0){
+					//语义错误
+					printf("Error type 3 at Line %d: Redefined variable \"%s\" in function().\n",son->sonlist->lineno,son->sonlist->value);
+				}else{
+					feildlistp->next = (struct Var*)malloc(sizeof(struct Var));
+					feildlistp = feildlistp->next;
+					feildlistp->type = converttype(type);
+					feildlistp->tname = type;
+					feildlistp->defline = son->sonlist->lineno;
+					feildlistp->deadline = -1;
+					feildlistp->name = son->sonlist->value;
+					feildlistp->value = 0;
+					feildlistp->father = feildlistp->next = feildlistp->sonlist = NULL;
+				}
+			}else{
+				//array
+				struct treeNode* tmp = son;
+				while(strcmp(tmp->sonlist->name,"ID") != 0) tmp = tmp->sonlist;
+				if (checkrepeat_inlist(tmp->sonlist->value,func->feild) != 0){
+					printf("Error type 3 at Line %d: Redefined variable \"%s\" in function().\n",tmp->sonlist->lineno,tmp->sonlist->value);
+				}else{
+					feildlistp->next = (struct Var*)malloc(sizeof(struct Var));
+					feildlistp = feildlistp->next;
+					feildlistp->type = converttype(type)+3;
+					feildlistp->tname = type;
+					feildlistp->defline = tmp->sonlist->lineno;
+					feildlistp->deadline = -1;
+					feildlistp->name = tmp->sonlist->value;
+					feildlistp->value = 0;
+					feildlistp->arraylen = atoi(son->sonlist->next->next->value);
+					feildlistp->father = feildlistp->next = feildlistp->sonlist = NULL;
+            
+					struct treeNode* temp = son->sonlist->sonlist;
+					struct Var* feildlistq = feildlistp;
+					while(temp != tmp->sonlist){
+						feildlistq->sonlist = (struct Var*)malloc(sizeof(struct Var));
+						feildlistq = feildlistq->sonlist;
+						feildlistq->type = feildlistp->type;
+						feildlistq->tname = feildlistp->tname;
+						feildlistq->arraylen = atoi(temp->next->next->value);
+						feildlistq->father = feildlistq->next = feildlistq->sonlist = NULL;
+
+						temp = temp->sonlist;
+					}
+				}
+			}
+			//next varlist
+			if (varlist->sonlist->next == NULL) varlist = NULL;else varlist = varlist->sonlist->next->next;
+		}
+	}
+	
+    return func;
 }
 //结构体定义
 int dfsStructDec(struct treeNode* node,char **typename){
@@ -263,7 +361,6 @@ int dfsExtDef(struct treeNode* node){
         }else{
             //struct 定义,type赋值时要注意opttag可以是匿名的
             dfsStructDec(sonson,&type);
-            //type = 
         }
     }
 
@@ -275,15 +372,42 @@ int dfsExtDef(struct treeNode* node){
     }
     //函数定义/声明
     if (strcmp(son->name,"FunDec") == 0){
-        dfsFunDec(son); //{ insert in there to make xingcan after {
-        son = son->next;
-        if (strcmp(son->name,"SEMI") == 0){
-
-        }else if (strcmp(son->name,"Compt") == 0){
-
+		//dfsFunDec to create a Func with (deflist), but do not insert to funclist.
+		//rt this Func , then checkrepeat
+		struct Func *func = dfsFunDec(son); //{ insert in there to make xingcan after {
+		if (strcmp(son->next->name,"SEMI") == 0){
+			//函数声明,先插入funclistp,在最后进行check
+			func->type = 2;
+			func->name = son->sonlist->value;
+			func->rt_type = converttype(type);
+			func->rt_tname = type;
+			funclistp->next = func;
+			funclistp = funclistp->next;
+			
+        }else if (strcmp(son->next->name,"CompSt") == 0){
+			if (checkrepeat_func(son->sonlist->value) == 0){
+				func->type = 1;
+				func->name = son->sonlist->value;
+				func->rt_type = converttype(type);
+				func->rt_tname = type;
+				funclistp->next = func;
+				funclistp = funclistp->next;
+				//将其形参加入varlist，然后进行compt的check
+				struct Var* p = func->feild;
+				if (p != NULL)
+					while(p->next != NULL) p = p->next;
+				varlistp->next = func->feild;
+				varlistp = p;
+				
+				//dfs CompSt
+				dfsCompSt(son->next);
+				
+			}else{
+				printf("Error type 4 at Line %d: Redefined function \"%s\".\n",func->defline,son->sonlist->value);
+			}
         }
+        
     }
-
 
     return 0;
 }
@@ -319,6 +443,15 @@ int checkmean(struct treeNode* root){
     structlistp->feild = NULL;
     structlistp->next = NULL;
 
+	funclist = (struct Func*)malloc(sizeof(struct Func));
+	funclistp = funclist;
+	funclistp->defline = 0;
+	funclistp->name = malloc(sizeof("s_t_a_r_t"));
+	strncpy(funclistp->name,"s_t_a_r_t",sizeof("s_t_a_r_t"));
+	funclistp->type = 1;
+	funclistp->feild = NULL;
+	funclistp->next = NULL;
+	
     //start
     dfsbuildtable(root);
     

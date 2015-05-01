@@ -21,13 +21,14 @@ struct Struct{
     struct Var *feild;
     struct Struct *next;
 };
-struct funcList{
-    int type;
-    int rt_type;
+struct Func{
+    int type;//0 - declaration, 1 - define
+    int rt_type; //Var-type
+    char* rt_tname;
     int defline;
     char *name;
-    
-    struct funcList *next;
+	struct Var *feild;
+    struct Func *next;
 };
 struct treeNode{
     int lineno;
