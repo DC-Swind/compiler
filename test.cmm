@@ -22,18 +22,22 @@ struct {
 int z;
 */
 int main(int aa,int bb[12],int cc);
-int main(){
-  
-}
 int main(int aa)
 {
   int i;
   int f,j = 4;
   int a[3][3];
-  while(i<10)
+  main(i,a[3],3);
+  i = 3;
+  a[2][2] = 1;
+  a + 1 = 2;
+  /*while(i<10)
   {
      a[0][i] = j;
-  }
+  }*/
   if (i == 5) j = j + 1; else j = j + 2;
   return 0;
+}
+int main(){
+  
 }

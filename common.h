@@ -1,6 +1,14 @@
 #ifndef _COMMON__H_
 #define _COMMON__H_
 
+#define _INT 1
+#define _FLOAT 2
+#define _STRUCT 3
+#define _INTARRAY 4
+#define _FLOATARRAY 5
+#define _STRUCTARRAY 6
+#define _NUMINT 8
+#define _NUMFLOAT 9
 struct Var{
     int type;//1-int,2-float,3-struct,4-intarray,5-floatarray,6-structarray,7-{
     char *tname;//type name. int float struct a ...
@@ -9,6 +17,7 @@ struct Var{
     char *name;//var name
     float value; 
     int arraylen;
+	int arraydimension;
     struct Var *father;
     struct Var *sonlist;
     struct Var *next;
