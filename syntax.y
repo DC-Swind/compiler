@@ -101,7 +101,7 @@ Stmt : Exp SEMI {$$ = createNode(@$.first_line,"Stmt",2,$1,$2);}
   | CompSt {$$ = createNode(@$.first_line,"Stmt",1,$1);}
   | RETURN Exp SEMI {$$ = createNode(@$.first_line,"Stmt",3,$1,$2,$3);}
   | IF LP Exp RP Stmt  %prec LOWER_THAN_ELSE {$$ = createNode(@$.first_line,"Stmt",5,$1,$2,$3,$4,$5);}
-  | IF LP Exp RP Stmt ELSE Stmt {$$ = createNode(@$.first_line,"Stmt",4,$1,$2,$3,$4,$5,$6,$7);}
+  | IF LP Exp RP Stmt ELSE Stmt {$$ = createNode(@$.first_line,"Stmt",7,$1,$2,$3,$4,$5,$6,$7);}
   | WHILE LP Exp RP Stmt {$$ = createNode(@$.first_line,"Stmt",5,$1,$2,$3,$4,$5);}
   | Exp error {}  /*ppp*/
 ;
