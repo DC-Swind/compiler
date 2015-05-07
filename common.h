@@ -22,6 +22,10 @@ struct Var{
     struct Var *sonlist;
     struct Var *next;
 };
+struct RTtype{
+    int type;
+    char* tname;
+};
 struct Struct{
     int type; //1-has name, 2-has no name
     char *name;

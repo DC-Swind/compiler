@@ -1695,7 +1695,7 @@ yyreduce:
 
   case 41:
 #line 104 "syntax.y" /* yacc.c:1646  */
-    {(yyval) = createNode((yyloc).first_line,"Stmt",4,(yyvsp[-6]),(yyvsp[-5]),(yyvsp[-4]),(yyvsp[-3]),(yyvsp[-2]),(yyvsp[-1]),(yyvsp[0]));}
+    {(yyval) = createNode((yyloc).first_line,"Stmt",7,(yyvsp[-6]),(yyvsp[-5]),(yyvsp[-4]),(yyvsp[-3]),(yyvsp[-2]),(yyvsp[-1]),(yyvsp[0]));}
 #line 1700 "syntax.tab.c" /* yacc.c:1646  */
     break;
 

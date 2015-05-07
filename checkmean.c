@@ -10,6 +10,16 @@ struct Func* funclist;
 //匿名结构体编号
 int structname = 1;
 //-----------------功能函数，暂时写在这里，后面移到另一个文件-----
+int checkType(char *type){
+    if (strcmp(type,"int") == 0) return 1;
+    else if (strcmp(type,"float") == 0) return 1;
+    struct Struct* p = structlist;
+    while(p!=NULL){
+        if (strcmp(type,p->name) == 0) return 1;
+        p = p->next;
+    }
+    return 0;
+}
 int copyVar(struct Var*insert, struct Var*p){
      insert->type = p->type;
      insert->tname = p->tname;
@@ -70,6 +80,7 @@ int checkrepeat_struct(struct Struct* p){
 //structfeild符号表查repeat
 int checkrepeat_inlist(char* name,struct Var* list){
     if (list == varlist){
+        /*
         struct Func* func = funclist;
         while(func!=NULL){
             if (strcmp(func->name,name) == 0) return 1;
@@ -80,6 +91,7 @@ int checkrepeat_inlist(char* name,struct Var* list){
             if (strcmp(pp->name,name) == 0) return 1;
             pp = pp->next;
         }
+        */
         struct Var* l = varlist;
         while(l!=NULL){
             if (strcmp(l->name,name) == 0) return 1;
@@ -143,7 +155,7 @@ int checkrepeat_func(struct Func *func){
 //----------------------------------------------------------------
 //forth level
 
-int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
+int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_flag){
     if (rtlist != varlist){
         /*
         printf("dfsDecList error, varlist is stack but other is linklist.\n ");
@@ -197,13 +209,19 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
                 if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
                 if (rtlist->type == 2) rtlistp->value = atof(dec->sonlist->next->next->sonlist->value);
                 */
-                int rtype = dfsExp(dec->sonlist->next->next);
-                if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
-                    
-                }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                if (struct_flag == 1){
+                    printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
                     
                 }else{
-                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                
+                    int rtype = dfsExp(dec->sonlist->next->next);
+                    if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
+                    
+                    }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                    }   
                 }
             }
             
@@ -263,13 +281,18 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
                 if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
                 if (rtlist->type == 2) rtlistp->value = atof(dec->sonlist->next->next->sonlist->value);
                 */
-                int rtype = dfsExp(dec->sonlist->next->next);
-                if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
-                    
-                }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
-                    
+                if (struct_flag == 1){
+                    printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
                 }else{
-                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                
+                    int rtype = dfsExp(dec->sonlist->next->next);
+                    if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
+                    
+                    }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                    }
                 }
             }
             
@@ -278,11 +301,11 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
     }
    
     if (dec->next != NULL && strcmp(dec->next->name,"COMMA") == 0){
-        dfsDecList(dec->next->next,type,rtlist);
+        dfsDecList(dec->next->next,type,rtlist,struct_flag);
     }
     return 0;
 }
-int dfsDef(struct treeNode* node,struct Var* rtlist){
+int dfsDef(struct treeNode* node,struct Var* rtlist,int struct_flag){
     //node is Def, rtlist是将这些Def插入到哪个varlist
     struct treeNode* def = node;
     //Specifier
@@ -301,22 +324,25 @@ int dfsDef(struct treeNode* node,struct Var* rtlist){
             //type = 
         }
     }
-
+    if (checkType(type) == 0){
+        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
+        return 0;
+    }
     //DecList 变量定义 ，这里没有函数
     struct treeNode* declist = specifier->next;
     if (strcmp(declist->name,"DecList") == 0){
-        dfsDecList(declist,type,rtlist); 
+        dfsDecList(declist,type,rtlist,struct_flag); 
     }
 
     return 0;
 }
 //结构体内，或函数体内 变量定义
-int dfsDefList(struct treeNode* node,struct Var* rtlist){
+int dfsDefList(struct treeNode* node,struct Var* rtlist,int struct_flag){
     //node is DefList, rtlist是将这些Def插入到那个Varlist，分为varlist表和struct的feild
 
     struct treeNode* p = node;
     while(p != NULL && p->sonlist!=NULL){
-        dfsDef(p->sonlist,rtlist);
+        dfsDef(p->sonlist,rtlist,struct_flag);
         p = p->sonlist->next;
     }
     return 0; 
@@ -655,7 +681,9 @@ int dfsExp(struct treeNode* node){
         }
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DOT") == 0){
         //Exp DOT ID
-        
+        //Exp 可以是数组，函数返回值，ID，等
+        int ltype = dfsExp(node->sonlist);
+        printf("%d(3) DOT ID\n",ltype);
     }
 
     return -1;
@@ -720,7 +748,7 @@ int dfsCompSt(struct treeNode* node,int rt_type){
     varlistp->next = varlist;
     varlist = varlistp;
     
-    dfsDefList(node->sonlist->next,varlist);
+    dfsDefList(node->sonlist->next,varlist,0);
     dfsStmtList(node->sonlist->next->next,rt_type);
 
     //meet } , remove untill a {
@@ -761,8 +789,16 @@ struct Func* dfsFunDec(struct treeNode* node){
     }else{
         //dfsVarList(node->sonlist->next->next);
         struct treeNode* varlist = node->sonlist->next->next;
+        
         while(varlist != NULL){
-            char* type = varlist->sonlist->sonlist->sonlist->value;
+            char *type = NULL;
+            if (strcmp(varlist->sonlist->sonlist->sonlist->name,"TYPE") == 0)
+                type = varlist->sonlist->sonlist->sonlist->value;
+            else 
+                type = varlist->sonlist->sonlist->sonlist->sonlist->next->sonlist->value;
+            if (checkType(type) == 0){
+                printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
+            }
             //son is VarDec
             struct treeNode* son = varlist->sonlist->sonlist->next;
             
@@ -853,7 +889,7 @@ int dfsStructDec(struct treeNode* node,char **typename){
     strncpy(structlistp->feild->name,"{",sizeof("{"));
     structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
 
-    dfsDefList(node->sonlist->next->next->next,structlistp->feild); 
+    dfsDefList(node->sonlist->next->next->next,structlistp->feild,1); 
         
     if (checkrepeat_struct(structlistp) == 0){
         structlistp->next = structlist;
@@ -884,7 +920,10 @@ int dfsExtDef(struct treeNode* node){
             dfsStructDec(sonson,&type);
         }
     }
-
+    if (checkType(type) == 0){
+        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
+        return 0;
+    }
     //ExtDecList 全局变量定义 
     son = son->next;
     if (strcmp(son->name,"ExtDecList") == 0){
