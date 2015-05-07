@@ -8,20 +8,21 @@ struct a{
     int ab;
 };
 struct a c;
+*/
 struct d{
+    int aaaa;
     int aaaa;
     int b,bb[11],bbbb = 3;
     struct{
         int a;
     }cf;
-}af;
-
+};
+/*
 struct {
     int ab;
 }cc;
 int z;
 */
-int i();
 int func();
 int main(int a);
 //int main(int aa,int bb[12],int cc);
@@ -33,11 +34,13 @@ int main(int aa)
   main(i && 3,a[3],3);
   i = 3 + a[main(2)][3.5];
   a[2][2] = 1;
+  i[1] = 2;
+  i();
   a + 1 = 2;
-  /*while(i<10)
+  while(i<10)
   {
-     a[0][i] = j;
-  }*/
+     int i = 4;
+  }
   if (i == 5) j = j + 1; else j = j + 2;
   return 0.1;
 }

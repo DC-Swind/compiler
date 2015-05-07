@@ -4,15 +4,32 @@
 #include "common.h"
 
 struct Var* varlist;
-struct Var* varlistp;
 struct Struct* structlist;
-struct Struct* structlistp;
 struct Func* funclist;
-struct Func* funclistp;
 
 //匿名结构体编号
 int structname = 1;
 //-----------------功能函数，暂时写在这里，后面移到另一个文件-----
+int copyVar(struct Var*insert, struct Var*p){
+     insert->type = p->type;
+     insert->tname = p->tname;
+     insert->defline = p->defline;
+     insert->deadline = p->deadline;
+     insert->name = p->name;
+     insert->value = p->value; 
+     insert->arraylen = p->arraylen;
+     insert->arraydimension = p->arraydimension;
+     insert->sonlist = p->sonlist;
+     return 0;
+}
+int printlist(struct Var* list){
+    while(list != NULL){
+        printf("%s,",list->name);
+        list = list->next;
+    }
+    printf("\n");
+    return 0;
+}
 int checkError18(){
     struct Func* p = funclist;
     while(p!=NULL){
@@ -47,7 +64,7 @@ int checkrepeat(char *name){
     return 0;
 }
 //structlist结构体表查repeat
-int checkrepeat_struct(){
+int checkrepeat_struct(struct Struct* p){
     return 0;
 }
 //structfeild符号表查repeat
@@ -63,8 +80,16 @@ int checkrepeat_inlist(char* name,struct Var* list){
             if (strcmp(pp->name,name) == 0) return 1;
             pp = pp->next;
         }
+        struct Var* l = varlist;
+        while(l!=NULL){
+            if (strcmp(l->name,name) == 0) return 1;
+            if (l->type == 7) break;
+            l = l->next;
+        }
+        return 0;
     }
     
+    //找到最后一个{
     struct Var* q = list;
     struct Var* p = list;
     while (q != NULL){
@@ -119,10 +144,15 @@ int checkrepeat_func(struct Func *func){
 //forth level
 
 int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
+    if (rtlist != varlist){
+        /*
+        printf("dfsDecList error, varlist is stack but other is linklist.\n ");
+        exit(-1);
+        */
+    }
     //node is DecList,rtlist 是将这些Dec插入到哪个Varlist
     //这个跟dfsExtDec差不多，不过注意赋值
-    //Dec要考虑 ASSIGNOP 的问题，Dec还没有处理完， 而且嵌套作用域问题也没有解决
-
+    
     //找到list中最后一个元素
     if (rtlist == NULL) return 0;
     struct Var* rtlistp = rtlist;
@@ -134,55 +164,119 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist){
     if (strcmp(dec->sonlist->sonlist->name,"ID") == 0){
         if (checkrepeat_inlist(dec->sonlist->sonlist->value,rtlist) != 0){
             //语义错误
-            printf("Error type x at Line %d: Redefined variable \"%s\" in struct.\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
+            if (rtlist == varlist)
+                printf("Error type 3 at Line %d: Redefined variable \"%s\" .\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
+            else 
+                printf("Error type 15 at Line %d: Redefined field \"%s\".\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
         }else{
-            rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
-            rtlistp = rtlistp->next;
-            rtlistp->type = converttype(type);
-            rtlistp->tname = type;
-            rtlistp->defline = dec->sonlist->sonlist->lineno;
-            rtlistp->deadline = -1;
-            rtlistp->name = dec->sonlist->sonlist->value;
-            rtlistp->value = 0;
+            if (rtlist == varlist){
+                rtlistp = (struct Var*)malloc(sizeof(struct Var));
+                rtlistp->type = converttype(type);
+                rtlistp->tname = type;
+                rtlistp->defline = dec->sonlist->sonlist->lineno;
+                rtlistp->deadline = -1;
+                rtlistp->name = dec->sonlist->sonlist->value;
+                rtlistp->value = 0;
+                rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+                rtlistp->next = varlist;
+                varlist = rtlistp;
+            }else{
+                rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
+                rtlistp = rtlistp->next;
+                rtlistp->type = converttype(type);
+                rtlistp->tname = type;
+                rtlistp->defline = dec->sonlist->sonlist->lineno;
+                rtlistp->deadline = -1;
+                rtlistp->name = dec->sonlist->sonlist->value;
+                rtlistp->value = 0;
+                rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+            }
+
             if (dec->sonlist->next != NULL && strcmp(dec->sonlist->next->name,"ASSIGNOP")==0){
+                /*
                 if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
                 if (rtlist->type == 2) rtlistp->value = atof(dec->sonlist->next->next->sonlist->value);
-}
-            rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+                */
+                int rtype = dfsExp(dec->sonlist->next->next);
+                if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
+                    
+                }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    
+                }else{
+                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                }
+            }
+            
         }
     }else{
         //array
         struct treeNode* tmp = dec;
         while(strcmp(tmp->sonlist->name,"ID") != 0) tmp = tmp->sonlist;
         if (checkrepeat_inlist(tmp->sonlist->value,rtlist) != 0){
-            printf("Error type x at Line %d: Redefined variable \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
+            if (rtlist == varlist)
+                printf("Error type 3 at Line %d: Redefined variable \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
+            else 
+                printf("Error type 15 at Line %d: Redefined field \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
         }else{
-            rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
-            rtlistp = rtlistp->next;
-            rtlistp->type = converttype(type)+3;
-            rtlistp->tname = type;
-            rtlistp->defline = tmp->sonlist->lineno;
-            rtlistp->deadline = -1;
-            rtlistp->name = tmp->sonlist->value;
-            rtlistp->value = 0;
-            rtlistp->arraylen = atoi(dec->sonlist->sonlist->next->next->value);
-            rtlistp->arraydimension = 1;
-            rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
-            
+            if (rtlist == varlist){
+                rtlistp = (struct Var*)malloc(sizeof(struct Var));
+                rtlistp->type = converttype(type)+3;
+                rtlistp->tname = type;
+                rtlistp->defline = tmp->sonlist->lineno;
+                rtlistp->deadline = -1;
+                rtlistp->name = tmp->sonlist->value;
+                rtlistp->value = 0;
+                rtlistp->arraylen = atoi(dec->sonlist->sonlist->next->next->value);
+                rtlistp->arraydimension = 1;
+                rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+                rtlistp->next = varlist;
+                varlist = rtlistp;
+            }else{
+                rtlistp->next = (struct Var*)malloc(sizeof(struct Var));
+                rtlistp = rtlistp->next;
+                rtlistp->type = converttype(type)+3;
+                rtlistp->tname = type;
+                rtlistp->defline = tmp->sonlist->lineno;
+                rtlistp->deadline = -1;
+                rtlistp->name = tmp->sonlist->value;
+                rtlistp->value = 0;
+                rtlistp->arraylen = atoi(dec->sonlist->sonlist->next->next->value);
+                rtlistp->arraydimension = 1;
+                rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
+            }
+          
             struct treeNode* temp = dec->sonlist->sonlist->sonlist;
             struct Var* varlistq = rtlistp;
             while(temp != tmp->sonlist){
                 varlistq->sonlist = (struct Var*)malloc(sizeof(struct Var));
                 varlistq = varlistq->sonlist;
-                varlistq->type = varlistp->type;
-                varlistq->tname = varlistp->tname;
+                varlistq->type = rtlistp->type;
+                varlistq->tname = rtlistp->tname;
                 varlistq->arraylen = atoi(temp->next->next->value);
                 varlistq->father = varlistq->next = varlistq->sonlist = NULL;
                 rtlistp->arraydimension++;
                 temp = temp->sonlist;
             }
+            
+            if (dec->sonlist->next != NULL && strcmp(dec->sonlist->next->name,"ASSIGNOP")==0){
+                /*
+                if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
+                if (rtlist->type == 2) rtlistp->value = atof(dec->sonlist->next->next->sonlist->value);
+                */
+                int rtype = dfsExp(dec->sonlist->next->next);
+                if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
+                    
+                }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    
+                }else{
+                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
+                }
+            }
+            
+            
         }
     }
+   
     if (dec->next != NULL && strcmp(dec->next->name,"COMMA") == 0){
         dfsDecList(dec->next->next,type,rtlist);
     }
@@ -219,6 +313,7 @@ int dfsDef(struct treeNode* node,struct Var* rtlist){
 //结构体内，或函数体内 变量定义
 int dfsDefList(struct treeNode* node,struct Var* rtlist){
     //node is DefList, rtlist是将这些Def插入到那个Varlist，分为varlist表和struct的feild
+
     struct treeNode* p = node;
     while(p != NULL && p->sonlist!=NULL){
         dfsDef(p->sonlist,rtlist);
@@ -239,8 +334,7 @@ int dfsExtDec(struct treeNode* node,char* type){
             //语义错误
             printf("Error type 3 at Line %d: Redefined variable \"%s\".\n",son->sonlist->lineno,son->sonlist->value);
         }else{
-            varlistp->next = (struct Var*)malloc(sizeof(struct Var));
-            varlistp = varlistp->next;
+            struct Var* varlistp = (struct Var*)malloc(sizeof(struct Var));
             varlistp->type = converttype(type);
             varlistp->tname = type;
             varlistp->defline = son->sonlist->lineno;
@@ -248,6 +342,8 @@ int dfsExtDec(struct treeNode* node,char* type){
             varlistp->name = son->sonlist->value;
             varlistp->value = 0;
             varlistp->father = varlistp->next = varlistp->sonlist = NULL;
+            varlistp->next = varlist;
+            varlist = varlistp;
         }
     }else{
         //array
@@ -256,8 +352,7 @@ int dfsExtDec(struct treeNode* node,char* type){
         if (checkrepeat(tmp->sonlist->value) != 0){
             printf("Error type 3 at Line %d: Redefined variable \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
         }else{
-            varlistp->next = (struct Var*)malloc(sizeof(struct Var));
-            varlistp = varlistp->next;
+            struct Var* varlistp = (struct Var*)malloc(sizeof(struct Var));
             varlistp->type = converttype(type)+3;
             varlistp->tname = type;
             varlistp->defline = tmp->sonlist->lineno;
@@ -267,6 +362,8 @@ int dfsExtDec(struct treeNode* node,char* type){
             varlistp->arraylen = atoi(son->sonlist->next->next->value);
             varlistp->arraydimension = 1;
             varlistp->father = varlistp->next = varlistp->sonlist = NULL;
+            varlistp->next = varlist;
+            varlist = varlistp;
             
             struct treeNode* temp = son->sonlist->sonlist;
             struct Var* varlistq = varlistp;
@@ -299,7 +396,7 @@ int isAarray(struct treeNode *node){
     return 0;
 }
 int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list){
-    //node is Exp, rewrite
+    //node is Exp
     char tmp[30];
     if (rtname == NULL) rtname = tmp;
     
@@ -344,6 +441,10 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
                         rt = 1;
                         *rttype = p->type - 3;
                     }
+                }else{
+                    //Error 10
+                    printf("Error type 10 at Line %d: \"%s\" is not an array.\n",node->lineno,p->name);
+                    rt = 1;
                 }
             }
             p = p->next;
@@ -353,7 +454,7 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
 }
 
 int checkFuncDefine(struct treeNode* node,int *type){
-    //node is Exp,sonlist is ID,sonlist->next is LP	printf("Enter checkFuncDefine.\n");
+    //node is Exp,sonlist is ID,sonlist->next is LP
     struct Func* p = funclist;
     if (strcmp(node->sonlist->next->next->name,"RP") == 0){
         //ID LP RP	
@@ -366,6 +467,17 @@ int checkFuncDefine(struct treeNode* node,int *type){
             }
             p = p->next;
         }
+        
+        struct Var* l = varlist;
+        while(l!=NULL){
+            if (strcmp(l->name,node->sonlist->value) == 0){
+                //Error 11
+                printf("Error type 11 at Line %d: \"%s\" is not a function.\n",node->lineno,l->name);
+                return 1;
+            }
+            l = l->next;
+        }
+        
         return 0;
     }else{
         //ID LP Args RP
@@ -381,26 +493,7 @@ int checkFuncDefine(struct treeNode* node,int *type){
                         printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",args->lineno,node->sonlist->value);
                         return 1;
                     }
-                    /*
-                    if (strcmp(args->sonlist->sonlist->name,"ID") == 0 || strcmp(args->sonlist->sonlist->name,"Exp") == 0){
-                        if (checkDefine(args->sonlist,NULL,&type,varlist)){
-                            if (type != q->type){
-                                printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",args->lineno,node->sonlist->value);
-                                return 1;
-                            }
-                        }else{
-                            printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",args->lineno,args->sonlist->sonlist->value);
-                            return 1;
-                        }
-                    }else{
-                        //int or float
-                        type = converttype(args->sonlist->sonlist->name);
-                        if (type != q->type){
-                            printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",args->lineno,node->sonlist->value);
-                            return 1;
-                        }
-                    }
-                    */
+                   
                     q = q->next;
                     if (args->sonlist->next != NULL)args = args->sonlist->next->next; else args=NULL;
                 }
@@ -414,6 +507,17 @@ int checkFuncDefine(struct treeNode* node,int *type){
             }
             p = p->next;
         }
+        
+        struct Var* l = varlist;
+        while(l!=NULL){
+            if (strcmp(l->name,node->sonlist->value) == 0){
+                //Error 11
+                printf("Error type 11 at Line %d: \"%s\" is not a function.\n",node->lineno,l->name);
+                return 1;
+            }
+            l = l->next;
+        }
+        
         //没有找到函数
         return 0;
     }
@@ -557,7 +661,7 @@ int dfsExp(struct treeNode* node){
     return -1;
 }
 
-int dfsStmt(struct treeNode* node){
+int dfsStmt(struct treeNode* node,int rt_type){
     //node is Stmt 
     struct treeNode *stmt = node;
     int rttype = -1;
@@ -566,7 +670,7 @@ int dfsStmt(struct treeNode* node){
             dfsExp(stmt->sonlist);
         }else if (strcmp(stmt->sonlist->name,"CompSt") == 0){
             //Stmt -> CompSt
-            dfsCompSt(stmt->sonlist,-1);
+            dfsCompSt(stmt->sonlist,rt_type);
         }else if (strcmp(stmt->sonlist->name,"RETURN") == 0){
             //Stmt -> RETURN Exp SEMI
             rttype = dfsExp(stmt->sonlist->next);
@@ -574,12 +678,12 @@ int dfsStmt(struct treeNode* node){
             //Stmt -> IF LP Exp RP Stmt 
             //Stmt -> IF LP Exp RP Stmt ELSE Stmt
             dfsExp(stmt->sonlist->next->next);
-            dfsStmt(stmt->sonlist->next->next->next->next);
-            if (stmt->sonlist->next->next->next->next->next != NULL)dfsStmt(stmt->sonlist->next->next->next->next->next->next);
+            dfsStmt(stmt->sonlist->next->next->next->next,rt_type);
+            if (stmt->sonlist->next->next->next->next->next != NULL)dfsStmt(stmt->sonlist->next->next->next->next->next->next,rt_type);
         }else{
             //Stmt -> WHILE LP Exp RP Stmt
             dfsExp(stmt->sonlist->next->next);
-            dfsStmt(stmt->sonlist->next->next->next->next);
+            dfsStmt(stmt->sonlist->next->next->next->next,rt_type);
         }
     return rttype;
 }
@@ -590,7 +694,7 @@ int dfsStmtList(struct treeNode* node,int rt_type){
 
     //处理Stmt中各类语句错误
     while(stmt != NULL){
-        int rt = dfsStmt(stmt);
+        int rt = dfsStmt(stmt,rt_type);
         if (rt_type != -1 && rt != -1 && rt != rt_type){
             if ((rt_type == _INT && rt == _NUMINT)||(rt_type == _FLOAT && rt == _NUMFLOAT)){
                 
@@ -607,35 +711,33 @@ int dfsStmtList(struct treeNode* node,int rt_type){
 int dfsCompSt(struct treeNode* node,int rt_type){
     //node is CompSt
     //insert a {
-    varlistp->next = (struct Var*)malloc(sizeof(struct Var));
-    varlistp = varlistp->next;
+    struct Var* varlistp = (struct Var*)malloc(sizeof(struct Var));
     varlistp->type = 7;
     varlistp->name = malloc(sizeof("{"));
     strncpy(varlistp->name,"{",sizeof("{"));
     varlistp->defline = node->lineno;
     varlistp->father = varlistp->sonlist = varlistp->next = NULL;
+    varlistp->next = varlist;
+    varlist = varlistp;
     
     dfsDefList(node->sonlist->next,varlist);
     dfsStmtList(node->sonlist->next->next,rt_type);
+
     //meet } , remove untill a {
     struct Var* p = varlist;
-    struct Var* q = varlist;
-    struct Var* qpre = varlist;
-    while(p!=NULL){
-        if (p->next != NULL && p->next->type == 7){
-            qpre = p;
-        }
+    struct Var* q = NULL;
+    while(p != NULL){
         if (p->type == 7){
-            q = p;
+            q = p->next;
+            free(p);
+            varlist = q;
+            break;
         }
-        p = p->next;
+        q = p->next;
+        free(p);
+        p = q;
     }
-    qpre->next = NULL;
-    while(q!=NULL){
-        qpre = q;
-        q = q->next;
-        free(qpre);
-    }
+    
     return 0;
 }
 
@@ -737,22 +839,27 @@ int dfsStructDec(struct treeNode* node,char **typename){
         name = node->sonlist->next->sonlist->value;
     }
     *typename = name;
-    if (checkrepeat_struct() == 0){
-        structlistp->next = (struct Struct*)malloc(sizeof(struct Struct));
-        structlistp = structlistp->next;
-        structlistp->type = type;
-        structlistp->name = name;
-        structlistp->defline = node->lineno;
-        structlistp->feild = (struct Var*)malloc(sizeof(struct Var));
-        //feild初始化一个开始标记为{
-        structlistp->feild->type = 7;
-        structlistp->feild->name = malloc(sizeof("{"));
-        strncpy(structlistp->feild->name,"{",sizeof("{"));
-        structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
+    
+    //先新建一个结构体，不放入structlist，chekcrepeat后放入
+    struct Struct* structlistp = (struct Struct*)malloc(sizeof(struct Struct));
+    structlistp->type = type;
+    structlistp->name = name;
+    structlistp->defline = node->lineno;
+    structlistp->feild = (struct Var*)malloc(sizeof(struct Var));
+    structlistp->next = NULL;
+    //feild初始化一个开始标记为{
+    structlistp->feild->type = 7;
+    structlistp->feild->name = malloc(sizeof("{"));
+    strncpy(structlistp->feild->name,"{",sizeof("{"));
+    structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
 
-        dfsDefList(node->sonlist->next->next->next,structlistp->feild); 
+    dfsDefList(node->sonlist->next->next->next,structlistp->feild); 
+        
+    if (checkrepeat_struct(structlistp) == 0){
+        structlistp->next = structlist;
+        structlist = structlistp;
     }else{
-
+        printf("Error type 16 at Line %d: Duplicated name \"%s\".\n",node->lineno,name);
     } 
     return 0;
 }
@@ -796,8 +903,8 @@ int dfsExtDef(struct treeNode* node){
             func->rt_type = converttype(type);
             func->rt_tname = type;
             if (checkrepeat_func(func) == 0){
-                funclistp->next = func;
-                funclistp = funclistp->next;
+                func->next = funclist;
+                funclist = func;
             }
         }else if (strcmp(son->next->name,"CompSt") == 0){
             func->type = 1;
@@ -805,18 +912,36 @@ int dfsExtDef(struct treeNode* node){
             func->rt_type = converttype(type);
             func->rt_tname = type;
             if (checkrepeat_func(func) == 0){
-
-                funclistp->next = func;
-                funclistp = funclistp->next;
+                func->next = funclist;
+                funclist = func;
                 //将其形参加入varlist，然后进行compt的check
                 struct Var* p = func->feild;
-                if (p != NULL)
-                    while(p->next != NULL) p = p->next;
-                varlistp->next = func->feild;
-                varlistp = p;
-                
+                while(p != NULL){
+                    struct Var* insert = (struct Var*)malloc(sizeof(struct Var));
+                    copyVar(insert,p);
+                    insert->father = NULL;
+                    insert->next = varlist;
+                    varlist = insert;
+                    p = p->next;
+                }
                 //dfs CompSt
                 dfsCompSt(son->next,func->rt_type);
+                
+                //delete 形参  一定记住
+                p = varlist;
+                struct Var* q;
+                while(p!=NULL){
+                    if (p->type == 7){
+                        q = p->next;
+                        free(p);
+                        varlist = q;
+                        break;
+                    }
+                    q = p->next;
+                    free(p);
+                    p = q;
+                }
+                
 
             }else{
                 printf("Error type 4 at Line %d: Redefined function \"%s\".\n",func->defline,son->sonlist->value);
@@ -845,28 +970,26 @@ int dfsbuildtable(struct treeNode* node){
 int checkmean(struct treeNode* root){
     //init
     varlist = (struct Var*)malloc(sizeof(struct Var));
-    varlistp = varlist;
     varlist->defline = 0;
     varlist->name = malloc(sizeof("{"));
     strncpy(varlist->name,"{",sizeof("{"));
     varlist->father = varlist->sonlist = varlist->next = NULL;
      
     structlist = (struct Struct*)malloc(sizeof(struct Struct));
-    structlistp = structlist;
-    structlistp->defline = 0;
-    structlistp->name = malloc(sizeof("s_t_a_r_t"));
-    strncpy(structlistp->name,"s_t_a_r_t",sizeof("s_t_a_r_t"));
-    structlistp->feild = NULL;
-    structlistp->next = NULL;
+    structlist->defline = 0;
+    structlist->name = malloc(sizeof("s_t_a_r_t"));
+    strncpy(structlist->name,"s_t_a_r_t",sizeof("s_t_a_r_t"));
+    structlist->feild = NULL;
+    structlist->next = NULL;
 
     funclist = (struct Func*)malloc(sizeof(struct Func));
-    funclistp = funclist;
-    funclistp->defline = 0;
-    funclistp->name = malloc(sizeof("s_t_a_r_t"));
-    strncpy(funclistp->name,"s_t_a_r_t",sizeof("s_t_a_r_t"));
-    funclistp->type = 1;
-    funclistp->feild = NULL;
-    funclistp->next = NULL;
+    funclist = funclist;
+    funclist->defline = 0;
+    funclist->name = malloc(sizeof("s_t_a_r_t"));
+    strncpy(funclist->name,"s_t_a_r_t",sizeof("s_t_a_r_t"));
+    funclist->type = 1;
+    funclist->feild = NULL;
+    funclist->next = NULL;
     
     //start
     dfsbuildtable(root);
