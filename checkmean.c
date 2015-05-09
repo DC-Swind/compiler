@@ -221,10 +221,13 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
     if (strcmp(dec->sonlist->sonlist->name,"ID") == 0){
         if (checkrepeat_inlist(dec->sonlist->sonlist->value,rtlist) != 0){
             //语义错误
-            if (rtlist == varlist)
+            if (rtlist == varlist){
                 printf("Error type 3 at Line %d: Redefined variable \"%s\" .\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
-            else 
+
+            }else{ 
                 printf("Error type 15 at Line %d: Redefined field \"%s\".\n",dec->sonlist->sonlist->lineno,dec->sonlist->sonlist->value);
+                return -1;
+            }
         }else{
             if (rtlist == varlist){
                 rtlistp = (struct Var*)malloc(sizeof(struct Var));
@@ -256,7 +259,7 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
                 */
                 if (struct_flag == 1){
                     printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
-                    
+                    return -1;
                 }else{
                     
                     struct RTtype rtype = dfsExp(dec->sonlist->next->next);
@@ -281,8 +284,10 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
         if (checkrepeat_inlist(tmp->sonlist->value,rtlist) != 0){
             if (rtlist == varlist)
                 printf("Error type 3 at Line %d: Redefined variable \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
-            else 
+            else {
                 printf("Error type 15 at Line %d: Redefined field \"%s\".\n",tmp->sonlist->lineno,tmp->sonlist->value);
+                return -1;
+            }
         }else{
             if (rtlist == varlist){
                 rtlistp = (struct Var*)malloc(sizeof(struct Var));
@@ -331,6 +336,7 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
                 */
                 if (struct_flag == 1){
                     printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
+                    return -1;
                 }else{
                 
                     struct RTtype rtype = dfsExp(dec->sonlist->next->next);
@@ -349,10 +355,12 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
             
         }
     }
-   
+    int rt = 0;
     if (dec->next != NULL && strcmp(dec->next->name,"COMMA") == 0){
-        if (rtlistisvarlist) dfsDecList(dec->next->next,type,varlist,struct_flag);
-        else dfsDecList(dec->next->next,type,rtlist,struct_flag);
+        if (rtlistisvarlist) rt = dfsDecList(dec->next->next,type,varlist,struct_flag);
+        else rt = dfsDecList(dec->next->next,type,rtlist,struct_flag);
+    
+        if (rt == -1) return rt;
     }
     return 0;
 }
@@ -375,14 +383,18 @@ int dfsDef(struct treeNode* node,struct Var* rtlist,int struct_flag){
             //type = 
         }
     }
-    if (checkType(type) == 0){
-        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
-        return 0;
-    }
+    
     //DecList 变量定义 ，这里没有函数
     struct treeNode* declist = specifier->next;
+    
+    if (checkType(type) == 0){
+        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",declist->lineno,type);
+        return 0;
+    }
+    
     if (strcmp(declist->name,"DecList") == 0){
-        dfsDecList(declist,type,rtlist,struct_flag); 
+        int rt = dfsDecList(declist,type,rtlist,struct_flag); 
+        if (rt == -1) return -1;
     }
 
     return 0;
@@ -390,16 +402,18 @@ int dfsDef(struct treeNode* node,struct Var* rtlist,int struct_flag){
 //结构体内，或函数体内 变量定义
 int dfsDefList(struct treeNode* node,struct Var* rtlist,int struct_flag){
     //node is DefList, rtlist是将这些Def插入到那个Varlist，分为varlist表和struct的feild
-
+    int rt = 0;
     struct treeNode* p = node;
     if (rtlist == varlist){
         while(p != NULL && p->sonlist!=NULL){
-            dfsDef(p->sonlist,varlist,struct_flag);
+            rt = dfsDef(p->sonlist,varlist,struct_flag);
+            if (rt == -1) return -1;
             p = p->sonlist->next;
         }
     }else{
         while(p != NULL && p->sonlist!=NULL){
-            dfsDef(p->sonlist,rtlist,struct_flag);
+            rt = dfsDef(p->sonlist,rtlist,struct_flag);
+            if (rt == -1) return -1;
             p = p->sonlist->next;
         }
     }
@@ -506,7 +520,7 @@ int checkDefine(struct treeNode* node,char *rtname,struct RTtype *rttype,struct 
             if (arr->next != NULL && strcmp(arr->next->name,"LB") == 0){
                 struct RTtype type = dfsExp(arr->next->next);
                 if (type.type != _INT && type.type != _NUMINT){
-                    printf("Error type 12 at Line %d: \"%s\" is not an integer.\n",arr->lineno,arr->next->next->name);
+                    printf("Error type 12 at Line %d: array subscript must be an integer.\n",arr->lineno);
                 }
             }
             dimensions++;
@@ -547,7 +561,7 @@ int checkFuncDefine(struct treeNode* node,struct RTtype *type){
         //ID LP RP	
         while(p!=NULL){
             if (strcmp(p->name,node->sonlist->value) == 0){
-                if (p->feild == NULL){
+                if (p->feild->next == NULL){
                     type->type = p->rt_type;
                     type->tname = p->rt_tname;
                     return 1;
@@ -931,11 +945,14 @@ struct Func* dfsFunDec(struct treeNode* node){
                     type = structspecifier->sonlist->next->sonlist->value;
                 }
             }
-            if (checkType(type) == 0){
-                printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
-            }
+            
             //son is VarDec
             struct treeNode* son = varlist->sonlist->sonlist->next;
+            
+            if (checkType(type) == 0){
+                printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",son->lineno,type);
+            }
+            
             
             // insert son  son is a single or array
             if (strcmp(son->sonlist->name,"ID") == 0){
@@ -1026,8 +1043,10 @@ int dfsStructDec(struct treeNode* node,char **typename){
     strncpy(structlistp->feild->name,"{",sizeof("{"));
     structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
 
-    dfsDefList(node->sonlist->next->next->next,structlistp->feild,1); 
-        
+    int rt = dfsDefList(node->sonlist->next->next->next,structlistp->feild,1); 
+    if (rt == -1){
+        return -1;
+    }
     if (checkrepeat_struct(structlistp) == 0){
         structlistp->next = structlist;
         structlist = structlistp;
@@ -1057,12 +1076,16 @@ int dfsExtDef(struct treeNode* node){
             dfsStructDec(sonson,&type);
         }
     }
-    if (checkType(type) == 0){
-        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
-        return 0;
-    }
+    
     //ExtDecList 全局变量定义 
     son = son->next;
+    
+    if (checkType(type) == 0){
+        printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",son->lineno,type);
+        return 0;
+    }
+
+    
     if (strcmp(son->name,"ExtDecList") == 0){
         //printf("type is %s\n",type);
         dfsExtDec(son,type); 

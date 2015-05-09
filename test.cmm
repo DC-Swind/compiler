@@ -1,4 +1,4 @@
-struct a{
+/*struct a{
     int a;
     float b;
 }aa;
@@ -16,8 +16,8 @@ int main(){
     aa = cc;
     aa = bb;
     return 0;
-}
-/*int i,j;
+}*/
+int i,j;
 int i;
 
 int f,k[2][3],ff;
@@ -66,4 +66,3 @@ int main();
 int main(int aa){
     
 }
-*/
