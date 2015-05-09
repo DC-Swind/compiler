@@ -6,7 +6,7 @@
 struct Var* varlist;
 struct Struct* structlist;
 struct Func* funclist;
-
+struct RTtype dfsExp(struct treeNode* node);
 //匿名结构体编号
 int structname = 1;
 //-----------------功能函数，暂时写在这里，后面移到另一个文件-----
@@ -74,7 +74,50 @@ int checkrepeat(char *name){
     return 0;
 }
 //structlist结构体表查repeat
-int checkrepeat_struct(struct Struct* p){
+int checkrepeat_struct(struct Struct* q){
+    struct Struct* p = structlist;
+    while(p != NULL){
+        if (strcmp(p->name,q->name) == 0)return 1;
+        /*
+        struct Var* varp = p->feild;
+        struct Var* varq = q->feild;
+        while(varp!=NULL && varq!=NULL){
+            //printf("%s - %s\n",varp->tname,varq->tname);
+            if (strcmp(varp->tname,varq->tname) != 0) break;
+            varq = varq->next;
+            varp = varp->next;
+        }
+        if (varq == NULL && varp == NULL) return 1;
+        */
+        p = p->next;
+    }
+    return 0;
+}
+int compare_struct(char* pname,char* qname){
+    if (strcmp(pname,qname) == 0) return 1;
+    struct Struct* p = NULL;
+    struct Struct* q = NULL;
+    struct Struct* list = structlist;
+    while(list != NULL){
+        if (strcmp(list->name,pname) == 0) p = list;
+        if (strcmp(list->name,qname) == 0) q = list;
+        list = list->next;
+    }
+    if (p == NULL || q == NULL){
+        printf("q or p can not find.\n");
+        exit(-1);
+    }
+    struct Var* varp = p->feild;
+    struct Var* varq = q->feild;
+    
+    while(varp!=NULL && varq!=NULL){
+        //printf("%s - %s\n",varp->tname,varq->tname);
+        if (strcmp(varp->tname,varq->tname) != 0) break;
+        varq = varq->next;
+        varp = varp->next;
+    }
+    if (varq == NULL && varp == NULL) return 1;
+      
     return 0;
 }
 //structfeild符号表查repeat
@@ -156,7 +199,9 @@ int checkrepeat_func(struct Func *func){
 //forth level
 
 int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_flag){
+    int rtlistisvarlist = 1;
     if (rtlist != varlist){
+        rtlistisvarlist = 0;
         /*
         printf("dfsDecList error, varlist is stack but other is linklist.\n ");
         exit(-1);
@@ -203,7 +248,7 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
                 rtlistp->value = 0;
                 rtlistp->father = rtlistp->next = rtlistp->sonlist = NULL;
             }
-
+            
             if (dec->sonlist->next != NULL && strcmp(dec->sonlist->next->name,"ASSIGNOP")==0){
                 /*
                 if (rtlist->type == 1) rtlistp->value = atoi(dec->sonlist->next->next->sonlist->value);
@@ -213,15 +258,18 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
                     printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
                     
                 }else{
-                
-                    int rtype = dfsExp(dec->sonlist->next->next);
-                    if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
                     
-                    }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    struct RTtype rtype = dfsExp(dec->sonlist->next->next);
+                    if (rtlistp->type == _INT && (rtype.type == _INT || rtype.type == _NUMINT)){
                     
+                    }else if (rtlistp->type == _FLOAT && (rtype.type == _FLOAT || rtype.type == _NUMFLOAT)){
+                    
+                    }else if (rtlistp->type == _STRUCT && rtype.type == _STRUCT && compare_struct(rtype.tname,rtlistp->tname)){
+                        
                     }else{
                         printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
-                    }   
+                    } 
+                    
                 }
             }
             
@@ -285,11 +333,13 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
                     printf("Error type 15 at Line %d: Assignment in struct define.\n",rtlistp->defline);
                 }else{
                 
-                    int rtype = dfsExp(dec->sonlist->next->next);
-                    if (rtlistp->type == _INT && (rtype == _INT || rtype == _NUMINT)){
+                    struct RTtype rtype = dfsExp(dec->sonlist->next->next);
+                    if (rtlistp->type == _INT && (rtype.type == _INT || rtype.type == _NUMINT)){
                     
-                    }else if (rtlistp->type == _FLOAT && (rtype == _FLOAT || rtype == _NUMFLOAT)){
+                    }else if (rtlistp->type == _FLOAT && (rtype.type == _FLOAT || rtype.type == _NUMFLOAT)){
                     
+                    }else if (rtlistp->type == _STRUCT && rtype.type == _STRUCT && compare_struct(rtype.tname,rtlistp->tname)){
+                        
                     }else{
                         printf("Error type 5 at Line %d: Type mismatched for assignment.\n",rtlistp->defline);
                     }
@@ -301,7 +351,8 @@ int dfsDecList(struct treeNode* node,char* type,struct Var* rtlist,int struct_fl
     }
    
     if (dec->next != NULL && strcmp(dec->next->name,"COMMA") == 0){
-        dfsDecList(dec->next->next,type,rtlist,struct_flag);
+        if (rtlistisvarlist) dfsDecList(dec->next->next,type,varlist,struct_flag);
+        else dfsDecList(dec->next->next,type,rtlist,struct_flag);
     }
     return 0;
 }
@@ -341,9 +392,16 @@ int dfsDefList(struct treeNode* node,struct Var* rtlist,int struct_flag){
     //node is DefList, rtlist是将这些Def插入到那个Varlist，分为varlist表和struct的feild
 
     struct treeNode* p = node;
-    while(p != NULL && p->sonlist!=NULL){
-        dfsDef(p->sonlist,rtlist,struct_flag);
-        p = p->sonlist->next;
+    if (rtlist == varlist){
+        while(p != NULL && p->sonlist!=NULL){
+            dfsDef(p->sonlist,varlist,struct_flag);
+            p = p->sonlist->next;
+        }
+    }else{
+        while(p != NULL && p->sonlist!=NULL){
+            dfsDef(p->sonlist,rtlist,struct_flag);
+            p = p->sonlist->next;
+        }
     }
     return 0; 
 }
@@ -421,7 +479,7 @@ int isAarray(struct treeNode *node){
         }
     return 0;
 }
-int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list){
+int checkDefine(struct treeNode* node,char *rtname,struct RTtype *rttype,struct Var* list){
     //node is Exp
     char tmp[30];
     if (rtname == NULL) rtname = tmp;
@@ -433,7 +491,8 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
         while(p!= NULL){
             if (strcmp(p->name,node->sonlist->value) == 0){
                 rt = 1;        
-                *rttype = p->type;
+                rttype->type = p->type;
+                rttype->tname = p->tname;
             }
             p = p->next;
         }
@@ -445,8 +504,8 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
         while(arr != NULL && strcmp(arr->name,"Exp") == 0){
             //check error 12,[..] not a int
             if (arr->next != NULL && strcmp(arr->next->name,"LB") == 0){
-                int type = dfsExp(arr->next->next);
-                if (type != _INT && type != _NUMINT){
+                struct RTtype type = dfsExp(arr->next->next);
+                if (type.type != _INT && type.type != _NUMINT){
                     printf("Error type 12 at Line %d: \"%s\" is not an integer.\n",arr->lineno,arr->next->next->name);
                 }
             }
@@ -462,10 +521,12 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
                 if (p->type == 4 || p->type == 5 || p->type == 6){
                     if (dimensions < p->arraydimension){
                         rt = 1;
-                        *rttype = p->type;
+                        rttype->type = p->type;
+                        rttype->tname = p->tname;
                     }else if (dimensions == p->arraydimension){
                         rt = 1;
-                        *rttype = p->type - 3;
+                        rttype->type = p->type - 3;
+                        rttype->tname = p->tname;
                     }
                 }else{
                     //Error 10
@@ -479,7 +540,7 @@ int checkDefine(struct treeNode* node,char *rtname,int *rttype,struct Var* list)
     }
 }
 
-int checkFuncDefine(struct treeNode* node,int *type){
+int checkFuncDefine(struct treeNode* node,struct RTtype *type){
     //node is Exp,sonlist is ID,sonlist->next is LP
     struct Func* p = funclist;
     if (strcmp(node->sonlist->next->next->name,"RP") == 0){
@@ -487,7 +548,8 @@ int checkFuncDefine(struct treeNode* node,int *type){
         while(p!=NULL){
             if (strcmp(p->name,node->sonlist->value) == 0){
                 if (p->feild == NULL){
-                    *type = p->rt_type;
+                    type->type = p->rt_type;
+                    type->tname = p->rt_tname;
                     return 1;
                 }
             }
@@ -512,8 +574,8 @@ int checkFuncDefine(struct treeNode* node,int *type){
             if (strcmp(p->name,node->sonlist->value) == 0){
                 struct Var* q = p->feild->next;
                 while(q != NULL && args != NULL){
-                    int argtype = dfsExp(args->sonlist);
-                    if (argtype == q->type || (argtype == _NUMINT && q->type == _INT) || (argtype == _NUMFLOAT && q->type == _FLOAT)){
+                    struct RTtype argtype = dfsExp(args->sonlist);
+                    if (argtype.type == q->type || (argtype.type == _NUMINT && q->type == _INT) || (argtype.type == _NUMFLOAT && q->type == _FLOAT)){
                        
                     }else{
                         printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",args->lineno,node->sonlist->value);
@@ -524,7 +586,8 @@ int checkFuncDefine(struct treeNode* node,int *type){
                     if (args->sonlist->next != NULL)args = args->sonlist->next->next; else args=NULL;
                 }
                 if (q == NULL && args == NULL){
-                    *type = p->rt_type;
+                    type->type = p->rt_type;
+                    type->tname = p->rt_tname;
                     return 1;
                 }else{
                     printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",args->lineno,node->sonlist->value);
@@ -548,13 +611,13 @@ int checkFuncDefine(struct treeNode* node,int *type){
         return 0;
     }
 }
-int dfsExp(struct treeNode* node){
+struct RTtype dfsExp(struct treeNode* node){
     //node is Exp
     //printf("lineno:%d\n",node->lineno);
     
     if (node->sonN == 1 && strcmp(node->sonlist->name,"ID") == 0){
         //Exp -> ID
-        int type;
+        struct RTtype type;
         char name[30];
         if (checkDefine(node,name,&type,varlist)){
             return type;
@@ -563,29 +626,41 @@ int dfsExp(struct treeNode* node){
         }
     }else if (node->sonN == 1 && strcmp(node->sonlist->name,"INT") == 0){
         //Exp -> INT
-        return _NUMINT;
+        struct RTtype type;
+        type.type = _NUMINT;
+        return type;
     }else if (node->sonN == 1 && strcmp(node->sonlist->name,"FLOAT") == 0){
         //Exp -> FLOAT
-        return _NUMFLOAT;
+        struct RTtype type;
+        type.type = _NUMFLOAT;
+        return type;
     }else if (strcmp(node->sonlist->name,"ID")==0 && strcmp(node->sonlist->next->name,"LP") == 0){
         //Exp ->ID LP (Args) RP
-        int type;
+        struct RTtype type;
         if (checkFuncDefine(node,&type)){
             return type;
         }else printf("Error type 2 at Line %d: Undefined function \"%s\".\n",node->lineno,node->sonlist->value);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"ASSIGNOP") == 0){
         //Exp ASSIGNOP Exp
-        int ltype;
+        struct RTtype ltype;
         if (strcmp(node->sonlist->sonlist->name,"ID") == 0 && node->sonlist->sonN == 1){
             //id
             struct treeNode* id = node->sonlist->sonlist;
-            int rtype = dfsExp(node->sonlist->next->next);
+            struct RTtype rtype = dfsExp(node->sonlist->next->next);
             if (checkDefine(node->sonlist,NULL,&ltype,varlist)){
                 //check type
-                if (rtype == ltype || rtype == ltype + 7){
-                
+                if (ltype.type == rtype.type && ltype.type == _STRUCT){
+                    if (compare_struct(ltype.tname,rtype.tname)){
+                        return rtype;
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",id->lineno);
+                    }
                 }else{
-                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",id->lineno);
+                    if (rtype.type == ltype.type || rtype.type == ltype.type + 7){
+                        return rtype;
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",id->lineno);
+                    }
                 }
             }else{
                 printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",id->lineno,id->value);
@@ -593,13 +668,21 @@ int dfsExp(struct treeNode* node){
         }else if (strcmp(node->sonlist->sonlist->name,"Exp") == 0 && isAarray(node->sonlist)){
             //array
             char name[100];
-            int rtype = dfsExp(node->sonlist->next->next);
+            struct RTtype rtype = dfsExp(node->sonlist->next->next);
             if (checkDefine(node->sonlist,name,&ltype,varlist)){
                 //check type
-                if (rtype == ltype || rtype == ltype + 7){
-                    
+                if (ltype.type == rtype.type && ltype.type == _STRUCT){
+                    if (compare_struct(ltype.tname,rtype.tname)){
+                        return rtype;
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",node->lineno);
+                    }
                 }else{
-                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",node->lineno);
+                    if (rtype.type == ltype.type || rtype.type == ltype.type + 7){
+                        return rtype;
+                    }else{
+                        printf("Error type 5 at Line %d: Type mismatched for assignment.\n",node->lineno);
+                    }
                 }
             }else{
                 printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",node->sonlist->lineno,name);
@@ -610,70 +693,83 @@ int dfsExp(struct treeNode* node){
         }
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"AND") == 0){
         //Exp AND Exp
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-
-        if ((ltype == _NUMINT || ltype == _INT)&&(rtype == _NUMINT || rtype == _INT)) return _NUMINT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt; rt.type = _NUMINT;
+        if ((ltype.type == _NUMINT || ltype.type == _INT)&&(rtype.type == _NUMINT || rtype.type == _INT)) return rt;
         //error
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"OR") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-        
-        if ((ltype == _NUMINT || ltype == _INT)&&(rtype == _NUMINT || rtype == _INT)) return _NUMINT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt; rt.type = _NUMINT;
+        if ((ltype.type == _NUMINT || ltype.type == _INT)&&(rtype.type == _NUMINT || rtype.type == _INT)) return rt;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"RELOP") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-        
-        if ((ltype == _INT || ltype == _NUMINT)&&(rtype == _INT || rtype == _NUMINT)) return _NUMINT;
-        if ((ltype == _FLOAT || ltype == _NUMFLOAT)&&(rtype == _FLOAT || rtype == _NUMFLOAT)) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if ((ltype.type == _INT || ltype.type == _NUMINT)&&(rtype.type == _INT || rtype.type == _NUMINT)) return rt1;
+        if ((ltype.type == _FLOAT || ltype.type == _NUMFLOAT)&&(rtype.type == _FLOAT || rtype.type == _NUMFLOAT)) return rt2;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"PLUS") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-        
-        if ((ltype == _INT || ltype == _NUMINT)&&(rtype == _INT || rtype == _NUMINT)) return _NUMINT;
-        if ((ltype == _FLOAT || ltype == _NUMFLOAT)&&(rtype == _FLOAT || rtype == _NUMFLOAT)) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if ((ltype.type == _INT || ltype.type == _NUMINT)&&(rtype.type == _INT || rtype.type == _NUMINT)) return rt1;
+        if ((ltype.type == _FLOAT || ltype.type == _NUMFLOAT)&&(rtype.type == _FLOAT || rtype.type == _NUMFLOAT)) return rt2;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"MINUS") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-        if ((ltype == _INT || ltype == _NUMINT)&&(rtype == _INT || rtype == _NUMINT)) return _NUMINT;
-        if ((ltype == _FLOAT || ltype == _NUMFLOAT)&&(rtype == _FLOAT || rtype == _NUMFLOAT)) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if ((ltype.type == _INT || ltype.type == _NUMINT)&&(rtype.type == _INT || rtype.type == _NUMINT)) return rt1;
+        if ((ltype.type == _FLOAT || ltype.type == _NUMFLOAT)&&(rtype.type == _FLOAT || rtype.type == _NUMFLOAT)) return rt2;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"STAR") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-        if ((ltype == _INT || ltype == _NUMINT)&&(rtype == _INT || rtype == _NUMINT)) return _NUMINT;
-        if ((ltype == _FLOAT || ltype == _NUMFLOAT)&&(rtype == _FLOAT || rtype == _NUMFLOAT)) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if ((ltype.type == _INT || ltype.type == _NUMINT)&&(rtype.type == _INT || rtype.type == _NUMINT)) return rt1;
+        if ((ltype.type == _FLOAT || ltype.type == _NUMFLOAT)&&(rtype.type == _FLOAT || rtype.type == _NUMFLOAT)) return rt2;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DIV") == 0){
-        int ltype = dfsExp(node->sonlist);
-        int rtype = dfsExp(node->sonlist->next->next);
-       if ((ltype == _INT || ltype == _NUMINT)&&(rtype == _INT || rtype == _NUMINT)) return _NUMINT;
-        if ((ltype == _FLOAT || ltype == _NUMFLOAT)&&(rtype == _FLOAT || rtype == _NUMFLOAT)) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rtype = dfsExp(node->sonlist->next->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if ((ltype.type == _INT || ltype.type == _NUMINT)&&(rtype.type == _INT || rtype.type == _NUMINT)) return rt1;
+        if ((ltype.type == _FLOAT || ltype.type == _NUMFLOAT)&&(rtype.type == _FLOAT || rtype.type == _NUMFLOAT)) return rt2;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist != NULL && strcmp(node->sonlist->name,"MINUS") == 0){
-        int ltype = dfsExp(node->sonlist->next);
-        if (ltype == _INT || ltype == _NUMINT) return _NUMINT;
-        if (ltype == _FLOAT || ltype == _NUMFLOAT) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if (ltype.type == _INT || ltype.type == _NUMINT) return rt1;
+        if (ltype.type == _FLOAT || ltype.type == _NUMFLOAT) return rt2;
         
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist != NULL && strcmp(node->sonlist->name,"NOT") == 0){
-        int ltype = dfsExp(node->sonlist->next);
-        if (ltype == _INT || ltype == _NUMINT) return _NUMINT;
+        struct RTtype ltype = dfsExp(node->sonlist->next);
+        struct RTtype rt; rt.type = _NUMINT;
+        if (ltype.type == _INT || ltype.type == _NUMINT) return rt;
         printf("Error type 7 at Line %d: Type mismatched for operands.\n",node->lineno);
     }else if (node->sonlist !=NULL && strcmp(node->sonlist->name,"LP") == 0){
         //LP Exp RP  (Exp)
-        int ltype = dfsExp(node->sonlist->next);
-        if (ltype == _INT) return _NUMINT;
-        if (ltype == _FLOAT) return _NUMFLOAT;
+        struct RTtype ltype = dfsExp(node->sonlist->next);
+        struct RTtype rt1; rt1.type = _NUMINT;
+        struct RTtype rt2; rt2.type = _NUMFLOAT;
+        if (ltype.type == _INT) return rt1;
+        if (ltype.type == _FLOAT) return rt2;
         return ltype;
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"LB") == 0){
         //Exp LB Exp RB
         char name[30];
-        int type;
+        struct RTtype type;
         if (checkDefine(node,name,&type,varlist)){
             return type;
         }else{
@@ -682,23 +778,48 @@ int dfsExp(struct treeNode* node){
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DOT") == 0){
         //Exp DOT ID
         //Exp 可以是数组，函数返回值，ID，等
-        int ltype = dfsExp(node->sonlist);
-        printf("%d(3) DOT ID\n",ltype);
-    }
+        struct treeNode* id = node->sonlist->next->next;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        struct RTtype rt;
+        //printf("%s-%d(3) DOT ID\n",ltype.tname,ltype.type);
+        if (ltype.type == 3){
+            struct Struct* l = structlist;
+            while(l != NULL){
+                if (strcmp(l->name,ltype.tname) == 0){
+                    struct Var* ll = l->feild;
+                    while(ll!=NULL){
+                        if (strcmp(ll->name,id->value) == 0){
+                            //printf("DDD: %d - %s\n",ll->type,ll->tname);
+                            rt.type = ll->type;
+                            rt.tname = ll->tname;
+                            return rt;
+                        }
+                        ll = ll->next;
+                    }
+                    printf("Error type 14 at Line %d: Non-existent field \"%s\".\n",node->lineno,id->value);
+                }
+                l = l->next;
+            }
+            
+        }else {
+            printf("Error type 13 at Line %d: Illegal use of \".\".\n",node->lineno);
+        }
+    } 
 
-    return -1;
+    struct RTtype rtt; rtt.type == -1;
+    return rtt;
 }
 
 int dfsStmt(struct treeNode* node,int rt_type){
     //node is Stmt 
     struct treeNode *stmt = node;
-    int rttype = -1;
+    struct RTtype rttype; rttype.type = -1;
     if (strcmp(stmt->sonlist->name,"Exp") == 0){
             //Stmt -> Exp SEMI
             dfsExp(stmt->sonlist);
         }else if (strcmp(stmt->sonlist->name,"CompSt") == 0){
             //Stmt -> CompSt
-            dfsCompSt(stmt->sonlist,rt_type);
+            dfsCompSt(stmt->sonlist,rt_type,0);
         }else if (strcmp(stmt->sonlist->name,"RETURN") == 0){
             //Stmt -> RETURN Exp SEMI
             rttype = dfsExp(stmt->sonlist->next);
@@ -713,7 +834,7 @@ int dfsStmt(struct treeNode* node,int rt_type){
             dfsExp(stmt->sonlist->next->next);
             dfsStmt(stmt->sonlist->next->next->next->next,rt_type);
         }
-    return rttype;
+    return rttype.type;
 }
 
 int dfsStmtList(struct treeNode* node,int rt_type){
@@ -736,18 +857,23 @@ int dfsStmtList(struct treeNode* node,int rt_type){
     return 0;
 }
 
-int dfsCompSt(struct treeNode* node,int rt_type){
+int dfsCompSt(struct treeNode* node,int rt_type,int flag_func){
     //node is CompSt
-    //insert a {
-    struct Var* varlistp = (struct Var*)malloc(sizeof(struct Var));
-    varlistp->type = 7;
-    varlistp->name = malloc(sizeof("{"));
-    strncpy(varlistp->name,"{",sizeof("{"));
-    varlistp->defline = node->lineno;
-    varlistp->father = varlistp->sonlist = varlistp->next = NULL;
-    varlistp->next = varlist;
-    varlist = varlistp;
-    
+    if (flag_func){
+        
+    }else{
+        //insert a {
+        struct Var* varlistp = (struct Var*)malloc(sizeof(struct Var));
+        varlistp->type = 7;
+        varlistp->tname = malloc(sizeof("{"));
+        strncpy(varlistp->tname,"{",sizeof("{"));
+        varlistp->name = malloc(sizeof("{"));
+        strncpy(varlistp->name,"{",sizeof("{"));
+        varlistp->defline = node->lineno;
+        varlistp->father = varlistp->sonlist = varlistp->next = NULL;
+        varlistp->next = varlist;
+        varlist = varlistp;
+    }
     dfsDefList(node->sonlist->next,varlist,0);
     dfsStmtList(node->sonlist->next->next,rt_type);
 
@@ -779,6 +905,8 @@ struct Func* dfsFunDec(struct treeNode* node){
     func->feild = (struct Var*)malloc(sizeof(struct Var));
     struct Var* feildlistp = func->feild;
     feildlistp->type = 7;
+    feildlistp->tname = malloc(sizeof("{"));
+    strncpy(feildlistp->tname,"{",sizeof("{"));
     feildlistp->name = malloc(sizeof("{"));
     strncpy(feildlistp->name,"{",sizeof("{"));
         
@@ -794,8 +922,15 @@ struct Func* dfsFunDec(struct treeNode* node){
             char *type = NULL;
             if (strcmp(varlist->sonlist->sonlist->sonlist->name,"TYPE") == 0)
                 type = varlist->sonlist->sonlist->sonlist->value;
-            else 
-                type = varlist->sonlist->sonlist->sonlist->sonlist->next->sonlist->value;
+            else{ 
+                //struct
+                struct treeNode* structspecifier = varlist->sonlist->sonlist->sonlist;
+                if (strcmp(structspecifier->sonlist->next->name,"OptTag") == 0){
+                    dfsStructDec(structspecifier,&type);
+                }else{
+                    type = structspecifier->sonlist->next->sonlist->value;
+                }
+            }
             if (checkType(type) == 0){
                 printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",node->lineno,type);
             }
@@ -885,6 +1020,8 @@ int dfsStructDec(struct treeNode* node,char **typename){
     structlistp->next = NULL;
     //feild初始化一个开始标记为{
     structlistp->feild->type = 7;
+    structlistp->feild->tname = malloc(sizeof("{"));
+    strncpy(structlistp->feild->tname,"{",sizeof("{"));
     structlistp->feild->name = malloc(sizeof("{"));
     strncpy(structlistp->feild->name,"{",sizeof("{"));
     structlistp->feild->father = structlistp->feild->sonlist = structlistp->feild->next = NULL;
@@ -936,7 +1073,7 @@ int dfsExtDef(struct treeNode* node){
         //rt this Func , then checkrepeat
         struct Func *func = dfsFunDec(son); //{ insert in there to make xingcan after {
         if (strcmp(son->next->name,"SEMI") == 0){
-            //函数声明,先插入funclistp,在最后进行check
+            //函数声明
             func->type = 2;
             func->name = son->sonlist->value;
             func->rt_type = converttype(type);
@@ -964,10 +1101,10 @@ int dfsExtDef(struct treeNode* node){
                     p = p->next;
                 }
                 //dfs CompSt
-                dfsCompSt(son->next,func->rt_type);
+                dfsCompSt(son->next,func->rt_type,1);
                 
-                //delete 形参  一定记住
-                p = varlist;
+                //delete 形参, 在dfsCompSt中删除
+                /*p = varlist;
                 struct Var* q;
                 while(p!=NULL){
                     if (p->type == 7){
@@ -980,7 +1117,7 @@ int dfsExtDef(struct treeNode* node){
                     free(p);
                     p = q;
                 }
-                
+                */
 
             }else{
                 printf("Error type 4 at Line %d: Redefined function \"%s\".\n",func->defline,son->sonlist->value);
@@ -988,7 +1125,6 @@ int dfsExtDef(struct treeNode* node){
         }
         
     }
-
     return 0;
 }
 

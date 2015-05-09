@@ -1,5 +1,23 @@
-/*
-int i,j;
+struct a{
+    int a;
+    float b;
+}aa;
+struct b{
+    int b;
+    float c;
+}bb;
+struct c{
+    int c;
+}cc;
+int main(){
+    int i = 10;
+    struct a dd = cc;
+    struct a ee = aa;
+    aa = cc;
+    aa = bb;
+    return 0;
+}
+/*int i,j;
 int i;
 
 int f,k[2][3],ff;
@@ -8,30 +26,28 @@ struct a{
     int ab;
 };
 struct a c;
-*/
 struct d{
     int aaaa;
-    //int aaaa;
     int b,bb[11],bbbb = 3;
     struct{
         float a;
     }cf;
 }ab;
 struct f ff;
-/*
+
 struct {
     int ab;
 }cc;
 int z;
-*/
-int func(struct af af);
+
+int func(struct af{int ii;float i;} a,struct d b);
 int main(int a);
-//int main(int aa,int bb[12],int cc);
 int main(int aa)
 {
+  int aa;
   struct fa afe;
   int i;
-  int f = ab.cf.a,j = 4;
+  int f = ab.cf.b,j = 4;
   int a[3][3];
   main(i && 3,a[3],3);
   i = 3 + a[main(2)][3.5];
@@ -50,3 +66,4 @@ int main();
 int main(int aa){
     
 }
+*/
