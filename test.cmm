@@ -1,9 +1,87 @@
-struct a{
+struct s{
     int a;
+}c;
+struct ss{
+    int a;
+    int a;
+};
+struct sss{
+    int a;
+    struct sss{
+        int b;
+    }b;
+};
+struct fn mm();
+int check();
+int check(int a);
+int main();
+int main()
+{
+    int i = 0;
+    int i;
+    float a[11];
+    j = i + 1;
+    inc(i);
+    i = 3.5;
+    10 = i;
+    i + 3.5;
+    main(1);
+    i[1];
+    i();
+    a[1.5];
+    i.a;
+    c.b;
+    return 3.5;
+}
+int main(){
+    
+}
+/*struct a{
+    int a;
+    int b;
+};
+struct b{
+    int a;
+    int b;
+};
+struct c{
+    float a;
+};
+struct a func(struct b bb){
+    struct c cc;
+    return bb;
+}
+int main(){
+    struct a aa;
+    struct b bb;
+    struct c cc;
+    float b;
+    aa = bb;
+    while(1){
+        float a;
+        return a;
+    }
+    if (1) 
+        return b;
+    else 
+        return b;
+    bb = func(aa);
+    return 0;
+}*/
+/*struct a{
+    int a;
+    int a;
+    int a;
+    struct a{
+        int a;
+    }aaa;
     float b;
 }aa;
 struct b{
     int b;
+    struct b{
+        int a;
+    }e;
     float c;
 }bb;
 struct c{
@@ -11,7 +89,8 @@ struct c{
 }cc;
 int func();
 int main(){
-    int i = 10;
+    int i =
+    10;
     struct a dd = cc;
     struct a ee = aa;
     aa = cc;
@@ -22,6 +101,7 @@ int main(){
 int func(int i){
     return 0;
 }
+*/
 /*
 int i,j;
 int i;
