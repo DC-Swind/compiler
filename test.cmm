@@ -1,6 +1,7 @@
 struct s{
     int a;
 }c;
+int s;
 struct ss{
     int a;
     int a;
@@ -11,15 +12,17 @@ struct sss{
         int b;
     }b;
 };
-struct fn mm();
 int check();
 int check(int a);
 int main();
 int main()
 {
-    int i = 0;
-    int i;
+    int i = 0; 
+    struct sss ef[11];
+    struct sss fe[1];
+    struct n n;
     float a[11];
+    ef = fe;
     j = i + 1;
     inc(i);
     i = 3.5;

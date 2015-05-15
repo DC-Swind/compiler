@@ -71,6 +71,11 @@ int checkrepeat(char *name){
         if (/*p->type == type && */strcmp(p->name,name) == 0) return 1;
         p = p->next;
     }
+    struct Struct* q = structlist;
+    while(q != NULL){
+        if (strcmp(q->name,name) == 0) return 1;
+        q = q->next;
+    }
     return 0;
 }
 //structlist结构体表查repeat
@@ -90,6 +95,11 @@ int checkrepeat_struct(struct Struct* q){
         if (varq == NULL && varp == NULL) return 1;
         */
         p = p->next;
+    }
+    struct Var* pp = varlist;
+    while(pp != NULL){
+        if (strcmp(pp->name,q->name) == 0) return 1;
+        pp = pp->next;
     }
     return 0;
 }
@@ -128,13 +138,13 @@ int checkrepeat_inlist(char* name,struct Var* list){
         while(func!=NULL){
             if (strcmp(func->name,name) == 0) return 1;
             func = func->next;
-        }
+        }*/
         struct Struct* pp = structlist;
         while(pp != NULL){
             if (strcmp(pp->name,name) == 0) return 1;
             pp = pp->next;
         }
-        */
+        
         struct Var* l = varlist;
         while(l!=NULL){
             if (strcmp(l->name,name) == 0) return 1;
@@ -657,7 +667,33 @@ struct RTtype dfsExp(struct treeNode* node){
         }else printf("Error type 2 at Line %d: Undefined function \"%s\".\n",node->lineno,node->sonlist->value);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"ASSIGNOP") == 0){
         //Exp ASSIGNOP Exp
-        struct RTtype ltype;
+        struct RTtype ltype = dfsExp(node->sonlist);
+        //printf("%d - \n",ltype.type);
+        if (ltype.type >= _INT && ltype.type <= _STRUCTARRAY){
+            struct RTtype rtype = dfsExp(node->sonlist->next->next);
+            int error = 0;
+            if (ltype.type == _INT){
+                if (rtype.type != _INT && rtype.type != _NUMINT) error = 1;
+            }else if (ltype.type == _FLOAT){
+                if (rtype.type != _FLOAT && rtype.type != _NUMFLOAT) error = 1;
+            }else if (ltype.type == _STRUCT){
+                if (rtype.type == _STRUCT && compare_struct(ltype.tname,rtype.tname)){
+                    
+                }else error = 1;
+            }else if (ltype.type == _INTARRAY){
+                if (rtype.type != _INTARRAY) error = 1;
+            }else if (ltype.type == _FLOATARRAY){
+                if (rtype.type != _FLOATARRAY) error = 1;
+            }else if (ltype.type == _STRUCTARRAY){
+                if (rtype.type == _STRUCTARRAY && compare_struct(ltype.tname,rtype.tname)){
+                    
+                }else error = 1;
+            }
+            if (error) printf("Error type 5 at Line %d: Type mismatched for assignment.\n",node->lineno);
+        }else if (ltype.type > 0){
+            printf("Error type 6 at Line %d: The left-hand side of an assignment must be a variable.\n",node->lineno);
+        }
+        /*
         if (strcmp(node->sonlist->sonlist->name,"ID") == 0 && node->sonlist->sonN == 1){
             //id
             struct treeNode* id = node->sonlist->sonlist;
@@ -706,6 +742,7 @@ struct RTtype dfsExp(struct treeNode* node){
             //error
             printf("Error type 6 at Line %d: The left-hand side of an assignment must be a variable.\n",node->lineno);
         }
+        */
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"AND") == 0){
         //Exp AND Exp
         struct RTtype ltype = dfsExp(node->sonlist);
@@ -821,7 +858,7 @@ struct RTtype dfsExp(struct treeNode* node){
         }
     } 
 
-    struct RTtype rtt; rtt.type == -1;
+    struct RTtype rtt; rtt.type = -1;
     return rtt;
 }
 int checkReturn(struct RTtype* rt,struct RTtype* rt_type,int lineno){
@@ -1123,7 +1160,7 @@ int dfsExtDef(struct treeNode* node){
         //rt this Func , then checkrepeat
         if (checkType(type) == 0){
             printf("Error type 17 at Line %d: Undefined structure \"%s\".\n",son->lineno,type);
-            return 0;
+            //return 0;
         }
         struct Func *func = dfsFunDec(son); //{ insert in there to make xingcan after {
         if (strcmp(son->next->name,"SEMI") == 0){
