@@ -39,6 +39,7 @@ int main()
 int main(){
     
 }
+
 /*struct a{
     int a;
     int b;

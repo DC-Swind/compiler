@@ -25,6 +25,7 @@ struct Var{
 struct RTtype{
     int type;
     char* tname;
+    int dimension;
 };
 struct Struct{
     int type; //1-has name, 2-has no name
