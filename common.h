@@ -9,6 +9,39 @@
 #define _STRUCTARRAY 6
 #define _NUMINT 8
 #define _NUMFLOAT 9
+
+#define _LABEL 1
+#define _FUNCTION 2
+#define _ASSIGNOP 3
+#define _ADD 4
+#define _MINUS 5
+#define _STAR 6
+#define _DIV 7
+#define _GETADDR 8
+#define _GETVALUE 9
+#define _ASSIGNOP_GETVALUE 10
+#define _GOTO 11
+#define _IF 12
+#define _RETURN 13
+#define _DEC 14
+#define _ARG 15
+#define _CALL 16
+#define _PARAM 17
+#define _READ 18
+#define _WRITE 19
+
+struct Instr{
+    int type; // 
+    char* target;
+    int op;
+    char* arg1;
+    char* arg2;
+    struct Instr* prev;
+    struct Instr* next;
+};
+
+
+
 struct Var{
     int type;//1-int,2-float,3-struct,4-intarray,5-floatarray,6-structarray,7-{
     char *tname;//type name. int float struct a ...
@@ -54,4 +87,7 @@ struct treeNode{
     struct treeNode *sonlist;
     struct treeNode *next;
 };
+
+int middle(struct treeNode* root);
+int checkmean(struct treeNode* root);
 #endif

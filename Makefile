@@ -1,7 +1,8 @@
 GITFLAGS = -m "Makefile auto commit" --no-verify --allow-empty
 
-parser:	syntax.tab.c checkmean.c 
-	gcc syntax.tab.c checkmean.c -lfl -ly -o parser
+parser:	syntax.tab.c checkmean.c middle.c 
+	gcc syntax.tab.c checkmean.c middle.c -lfl -ly -o parser
+	
 syntax.tab.c: lex.yy.c
 	bison -d -v syntax.y
 #scanner: lex.yy.c
@@ -9,6 +10,8 @@ syntax.tab.c: lex.yy.c
 lex.yy.c:
 	flex lexical.l
 
+wall:syntax.tab.c checkmean.c middle.c 
+	gcc -Wall syntax.tab.c checkmean.c middle.c -lfl -ly -o parser
 # 定义伪目标
 .PHONY: play clean git
 clean:
