@@ -16,9 +16,12 @@ int labelN = 0;
 struct Instr* translate_DefList(struct Varm* list ,struct treeNode* node);
 char* newVname();
 struct Instr* translate_CompSt(struct treeNode* node);
+char* newTemp();
+char* newLabel();
+struct Instr* translate_Cond(struct treeNode* node,char* label_true,char* label_false,struct Varm* list);
 //-----------------------------------------------------------------------------
-int printInstrList(){
-    FILE* file = fopen("output.rs","w+");
+int printInstrList(struct Instr* instrlist){
+    FILE* file = fopen("output.rs","a+");
     if (file == NULL){
         printf("Can not open file.\n");
         return 0;
@@ -88,14 +91,16 @@ int printInstrList(){
         
         instrlist = instrlist->next;
     }
-    
+    fprintf(file,"---------------------------------------\n");
     fclose(file);
     return 0;
 }
 struct Instr* linkCode(struct Instr* code1,struct Instr* code2){
     if (code1 == NULL) return code2;
     if (code2 == NULL) return code1;
-    code1->next = code2;
+    struct Instr* code1last = code1;
+    while(code1last->next != NULL) code1last = code1last->next;
+    code1last->next = code2;
     return code1;
 }
 struct Instr* generate_instr(int type,char* arg1,char* arg2,char* target,char* op){
@@ -105,7 +110,10 @@ struct Instr* generate_instr(int type,char* arg1,char* arg2,char* target,char* o
     instr->arg1 = arg1;
     instr->arg2 = arg2;
     instr->target = target;
-    strcpy(instr->op,op);
+    if (op == NULL) instr->op = NULL; else{
+        instr->op = op;
+        //strcpy(instr->op,op);
+    }
     instr->prev = instr->next = NULL;
     return instr;
 }
@@ -129,26 +137,62 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
     if (node->sonN == 1 && strcmp(node->sonlist->name,"INT") == 0){
         //Exp -> INT
         int value = get_value(node->sonlist);
-        char tmp[20];
+        char* tmp = (char*)malloc(20);
         sprintf(tmp,"#%d",value);
         return generate_instr(_ASSIGNOP,tmp,NULL,place,NULL);
     }else if (node->sonN == 1 && strcmp(node->sonlist->name,"ID") == 0){
         //Exp -> ID
-        char* var = lookup(list,node->sonlist->value);
-        return generate_instr(_ASSIGNOP,var,NULL,place,NULL);
+        char* vname = lookup(list,node->sonlist->value);
+        return generate_instr(_ASSIGNOP,vname,NULL,place,NULL);
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"ASSIGNOP") == 0){
         //Exp -> Exp ASSIGNOP Exp
+        //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        //attention , Exp1 can be not ID.
+        //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        char* vname = lookup(list,node->sonlist->sonlist->value);
+        char* t = newTemp();
+        struct Instr* code1 = translate_Exp(node->sonlist->next->next,list,t);
+        struct Instr* code2 = generate_instr(_ASSIGNOP,t,NULL,vname,NULL);
+        struct Instr* code = linkCode(code1,code2);
+        if (place == NULL) return code; 
+        else return linkCode(code,generate_instr(_ASSIGNOP,vname,NULL,place,NULL));
         
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"PLUS") == 0){
         //Exp -> Exp PLUS Exp
-        
+        char* t1 = newTemp();
+        char* t2 = newTemp();
+        struct Instr* code1 = translate_Exp(node->sonlist,list,t1);
+        struct Instr* code2 = translate_Exp(node->sonlist->next->next,list,t2);
+        struct Instr* code3 = generate_instr(_ADD,t1,t2,place,NULL);
+        return linkCode(linkCode(code1,code2),code3);
     }else if (strcmp(node->sonlist->name,"MINUS") == 0){
         //MINUS Exp
-        
+        char* t1 = newTemp();
+        struct Instr* code1 = translate_Exp(node->sonlist->next,list,t1);
+        struct Instr* code2 = generate_instr(_MINUS,"#0",t1,place,NULL);
+        return linkCode(code1,code2);
     }else if (strcmp(node->sonlist->name,"NOT") == 0 || (node->sonlist->next != NULL && (strcmp(node->sonlist->next->name,"RELOP") == 0 || strcmp(node->sonlist->next->name,"AND") == 0 || strcmp(node->sonlist->next->name,"OR") == 0))){
         //Exp -> Exp RELOP Exp | NOT Exp | Exp AND Exp | Exp OR Exp 
-        
-    }
+        char* label1 = newLabel();
+        char* label2 = newLabel();
+        struct Instr* code1 = generate_instr(_ASSIGNOP,"#0",NULL,place,NULL);
+        struct Instr* code2 = translate_Cond(node,label1,label2,list);
+        struct Instr* code3 = generate_instr(_LABEL,label1,NULL,NULL,NULL);
+        code3 = linkCode(code3,generate_instr(_ASSIGNOP,"#1",NULL,place,NULL));
+        return linkCode(linkCode(code1,code2),code3);
+    }else if (node->sonlist->next->next!=NULL && strcmp(node->sonlist->next->next->name,"RP") == 0){
+        //Exp -> ID LP RP
+        if (strcmp(node->sonlist->value,"read") == 0){
+            return generate_instr(_READ,place,NULL,NULL,NULL);
+        }else{
+            return generate_instr(_CALL,node->sonlist->value,NULL,place,NULL);
+        }
+    }else if (node->sonlist->next->next!=NULL && strcmp(node->sonlist->next->next->name,"Args") == 0){
+        //Exp -> LP Args RP
+        return NULL;
+    }else{
+        // no 
+    } 
     
 }
 
@@ -276,25 +320,42 @@ struct RTtype translate_Specifier(struct treeNode* node){
     type.type = -1;
     return type;
 }
-
+char* get_relop(struct treeNode* node){
+    //node is relop
+    return node->value;
+}
 struct Instr* translate_Cond(struct treeNode* node,char* label_true,char* label_false,struct Varm* list){
     if (node->sonlist->next!=NULL && strcmp(node->sonlist->next->name,"RELOP") == 0){
         char* t1 = newTemp();
         char* t2 = newTemp();
-        struct Instr* code1 = translate_Exp(node->sonlist,varmlist,t1);
-        
+        struct Instr* code1 = translate_Exp(node->sonlist,list,t1);
+        struct Instr* code2 = translate_Exp(node->sonlist->next->next,list,t2);
+        char* op = get_relop(node->sonlist->next);
+        struct Instr* code3 = generate_instr(_IF,t1,t2,label_true,op);
+        struct Instr* code = linkCode(code1,code2);
+        code = linkCode(code,code3);
+        return linkCode(code,generate_instr(_GOTO,label_false,NULL,NULL,NULL));
     }else if (node->sonlist->next!=NULL && strcmp(node->sonlist->next->name,"Exp") == 0){
-        
-        
+        //NOT Exp
+        return translate_Cond(node->sonlist->next,label_false,label_true,list);
     }else if (node->sonlist->next!=NULL && strcmp(node->sonlist->next->name,"AND") == 0){
-        
-        
+        char* label1 = newLabel();
+        struct Instr* code1 = translate_Cond(node->sonlist,label1,label_false,list);
+        struct Instr* code2 = translate_Cond(node->sonlist->next->next,label_true,label_false,list);
+        struct Instr* code = linkCode(code1,generate_instr(_LABEL,label1,NULL,NULL,NULL));
+        return linkCode(code,code2);
     }else if (node->sonlist->next!=NULL && strcmp(node->sonlist->next->name,"OR") == 0){
-        
-        
+        char* label1 = newLabel();
+        struct Instr* code1 = translate_Cond(node->sonlist,label_true,label1,list);
+        struct Instr* code2 = translate_Cond(node->sonlist->next->next,label_true,label_false,list);
+        struct Instr* code = linkCode(code1,generate_instr(_LABEL,label1,NULL,NULL,NULL));
+        return linkCode(code,code2);
     }else{
-        
-        
+        char* t = newTemp();
+        struct Instr* code1 = translate_Exp(node,list,t);
+        struct Instr* code2 = generate_instr(_IF,t,"#0",label_true,"!=");
+        struct Instr* code = linkCode(code1,code2);
+        return linkCode(code,generate_instr(_GOTO,label_false,NULL,NULL,NULL));
     }
     
     return NULL;
@@ -325,7 +386,8 @@ struct Instr* translate_Stmt(struct treeNode* node){
         code = linkCode(code,generate_instr(_GOTO,label3,NULL,NULL,NULL));
         code = linkCode(code,generate_instr(_LABEL,label2,NULL,NULL,NULL));
         code = linkCode(code,code3);
-        return linkCode(code,generate_instr(_LABEL,label3,NULL,NULL,NULL));
+        code = linkCode(code,generate_instr(_LABEL,label3,NULL,NULL,NULL));
+        return code;
     }else if (strcmp(node->sonlist->name,"IF") == 0){
         //Stmt -> IF LP Exp RP Stmt
         char* label1 = newLabel();
@@ -354,6 +416,7 @@ struct Instr* translate_StmtList(struct treeNode* node){
     struct Instr* code1 = NULL;
     while(node->sonlist!=NULL){
         struct Instr* code2 = translate_Stmt(node->sonlist);
+        printInstrList(code2);
         code1 = linkCode(code1,code2);
         node = node->sonlist->next;
     }
@@ -365,6 +428,7 @@ struct Instr* translate_DefList(struct Varm* list ,struct treeNode* node){
     struct Instr* code1 = NULL;
     while(deflist != NULL){
         struct treeNode* def = deflist->sonlist;
+        if (def == NULL) break;
         struct RTtype type = translate_Specifier(def->sonlist);
         struct treeNode* declist = def->sonlist->next;
         while(declist != NULL){
@@ -381,9 +445,10 @@ struct Instr* translate_DefList(struct Varm* list ,struct treeNode* node){
                 code1 = linkCode(code1,code2);
                 
             }
-            declist = declist->sonlist->next->next;
+            if (declist->sonN == 1) declist = NULL; 
+            else declist = declist->sonlist->next->next;
         }
-        deflist = deflist->sonlist->next;
+        if (deflist->sonlist == NULL) deflist = NULL; else deflist = deflist->sonlist->next;
     }
     return code1;
 }
@@ -417,7 +482,7 @@ struct Instr* translate_FunDec(struct treeNode* node){
 
 struct Instr* translate_ExtDef(struct treeNode* node){
     if (node == NULL) return NULL;
-    struct treeNode* son = node->sonlist;
+    struct treeNode* son = node->sonlist->next;
     if (strcmp(node->sonlist->next->name,"SEMI") == 0){
         //Specifier SEMI
         translate_Specifier(node->sonlist);
@@ -438,28 +503,29 @@ struct Instr* translate_ExtDef(struct treeNode* node){
 
 //first level 找到ExtDef进入下一层 
 struct Instr* translate(struct treeNode* node){
+    //node is ExtDefList
     if (node == NULL) return NULL;
     struct Instr* code1 = NULL;
     struct Instr* code2 = NULL;
     
-    if (strcmp(node->name,"ExtDef") == 0){
-        code1 = translate_ExtDef(node);
-    }else{
-        struct treeNode* son = node->sonlist;
-        while(son != NULL){
-            code2 = translate(son);
-            son = son->next;
-        }    
+    if (node->sonlist == NULL) return NULL;
+    
+    if (strcmp(node->sonlist->name,"ExtDef") == 0){
+        code1 = translate_ExtDef(node->sonlist);
     }
+    code2 = translate(node->sonlist->next);
+    
     return linkCode(code1,code2);
 }
 
 int middle(struct treeNode* root){
     varmlist = (struct Varm*)malloc(sizeof(struct Varm));
     varmlist->type == 7;
+    varmlist->name = (char*)malloc(30);
+    sprintf(varmlist->name,"$_start_");
     structlist = NULL;
     
-    instrlist = translate(root);
-    printInstrList();
+    instrlist = translate(root->sonlist);
+    printInstrList(instrlist);
     return 0;
 }
