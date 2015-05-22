@@ -32,32 +32,24 @@ t10 := t11 * t12 :
 RETURN t9
 LABEL label3 :
 FUNCTION main :
-DEC v9 320
-t16 := v9
-t17 := #3
-t17 := t17 * #4 :
-t16 := t16 + t17 :
-t18 := #2
-t18 := t18 * #32 :
-t16 := t16 + t18 :
+t16 := v8
+t16 := t16 + #0 :
+t17 := #1
+*t16 := t17
+t18 := v6
 t19 := #1
-*t16 := t19
-READ t20
-v6 := t20
-t21 := v6
-t22 := #1
-IF t21 > t22 GOTO label4
+IF t18 > t19 GOTO label4
 GOTO label5
 LABEL label4 :
-t24 := v6
-t23 := CALL fact
-v7 := t23
+t21 := v6
+t20 := CALL fact
+v7 := t20
 GOTO label6
 LABEL label5 :
-t25 := #1
-v7 := t25
+t22 := #1
+v7 := t22
 LABEL label6 :
-t26 := v7
-WRITE t26
-t27 := #0
-RETURN t27
+t23 := v7
+WRITE t23
+t24 := #0
+RETURN t24

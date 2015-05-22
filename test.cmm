@@ -32,9 +32,10 @@ int main()
 {
     int m, result;
     struct ss sss;
-    int r[10][8];
-    r[2][3] = 1;
-    m = read();
+    //int r[10][8];
+    //r[2][3] = 1;
+    //m = read();
+    sss.a.b = 1;
     if (m > 1)
         result = fact(m);
     else

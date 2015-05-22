@@ -226,6 +226,53 @@ struct Instr* cal_offset(struct treeNode* node,char *offset){
     //return code1;
     
 }
+struct Instr* cal_struct_offset(struct treeNode* node,char* place,struct RTtype* type,int* offset){
+    //Exp -> Exp DOT ID
+    if (strcmp(node->sonlist->sonlist->name,"ID") == 0){
+        struct Varm* varr = varmlist;
+        while(varr != NULL){
+            if (strcmp(varr->name,node->sonlist->sonlist->value) == 0) break;
+            varr = varr->next;
+        }
+        struct Instr* code = generate_instr(_ASSIGNOP,varr->vname,NULL,place,NULL);
+        struct Structm* str = structlist;
+        while(str != NULL){
+            if (strcmp(str->name,varr->tname) == 0) break;
+            str = str->next;
+        }
+        int size = 0;
+        struct Varm* var = str->feild;
+        while(var != NULL){
+            if (var->name != NULL && strcmp(var->name,node->sonlist->next->next->value) == 0) break;
+            size += var->size;
+            var = var->next;
+        }
+        type->type = var->type;
+        type->tname = var->tname;
+        *offset = size;
+        return code;
+    }else{
+        struct RTtype rttype;
+        int off;
+        struct Instr* code1 = cal_struct_offset(node->sonlist,place,&rttype,&off);
+        struct Structm* str = structlist;
+        while(str != NULL){
+            if (strcmp(str->name,rttype.tname) == 0) break;
+            str = str->next;
+        }
+        int size = 0;
+        struct Varm* var = str->feild;
+        while(var != NULL){
+            if (var->name != NULL && strcmp(var->name,node->sonlist->next->next->value) == 0) break;
+            size += var->size;
+            var = var->next;
+        }
+        type->type = var->type;
+        type->tname = var->tname;
+        *offset = off+size;
+        return code1;
+    }
+}
 
 struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place){
     //node is Exp
@@ -247,8 +294,10 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         char* vname = NULL;
         struct Instr* code0 = NULL;
         if (node->sonlist->sonN == 1)
+            //Exp1 is ID
             vname = lookup(list,node->sonlist->sonlist->value);
         else{
+            //Exp2 is array or struct
             vname = newTemp();
             code0 = translate_Exp(node->sonlist,NULL,vname);
         }
@@ -344,25 +393,20 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
             struct Instr* code1 = cal_offset(node,place);
             return code1;
         }
-        /*if (strcmp(node->sonlist->name,"ID") == 0){
-            
-        }else{
-            char* t1 = newTemp();
-            char* t2 = newTemp();
-            struct Instr* code1 = translate(node->sonlist,list,t1);
-
-        }*/
     }else if (node->sonN == 3 && strcmp(node->sonlist->next->name,"DOT") == 0){
         //Exp -> Exp DOT ID
-        struct treeNode* id = node->sonlist;
-        while(id != NULL){
-            if (strcmp(id->name,"ID") == 0) break;
-            id = id->sonlist;
+        struct RTtype type;
+        int offset;
+        struct Instr* code1 = cal_struct_offset(node,place,&type,&offset);
+        char* off = (char*)malloc(20);
+        sprintf(off,"#%d",offset);
+        struct Instr* code2 = generate_instr(_ADD,place,off,place,NULL);
+        if (list != NULL){
+            struct Instr* code3 = generate_instr(_GETVALUE,place,NULL,place,NULL);
+            return linkCode(code1,linkCode(code2,code3));
+        }else{
+            return linkCode(code1,code2);
         }
-        
-        struct Instr* code1 = translate_Exp(node->sonlist,NULL,place);
-        
-        return NULL;
     }else{
         return NULL;
     }
@@ -446,6 +490,7 @@ struct Structm* newStruct(){
     rt->next = NULL;
     rt->feild = (struct Varm*)malloc(sizeof(struct Varm));
     rt->feild->type == 7;
+    rt->feild->size = 0;
     rt->feild->next = NULL;
     return rt;
 }
@@ -503,8 +548,9 @@ struct RTtype translate_Specifier(struct treeNode* node){
            type.tname = newstruct->name;
            if (structlist == NULL) structlist = newstruct;
            else{
-                structlist->next = newstruct;
-                structlist = newstruct;
+               struct Structm* structlistlast = structlist;
+               while(structlistlast->next != NULL) structlistlast = structlistlast->next;
+               structlistlast->next = newstruct;
            }
            return type;
         }
