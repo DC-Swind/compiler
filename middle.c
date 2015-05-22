@@ -40,7 +40,7 @@ int cal_StructLen(char* name){
     return -1;
 }
 int cal_TypeLen(struct RTtype *type){
-    if (type->type == _INT || _FLOAT) return 4;
+    if (type->type == _INT || type->type == _FLOAT) return 4;
     return cal_StructLen(type->tname);
 }
 
@@ -69,18 +69,18 @@ int printInstrList(struct Instr* instrlist){
                 fprintf(file,"%s := %s\n",instrlist->target,instrlist->arg1);
                 break;
             case _ADD:
-                fprintf(file,"%s := %s + %s :\n",instrlist->target,instrlist->arg1,instrlist->arg2);
+                fprintf(file,"%s := %s + %s\n",instrlist->target,instrlist->arg1,instrlist->arg2);
                 break;
                 
             case _MINUS:
-                fprintf(file,"%s := %s - %s :\n",instrlist->target,instrlist->arg1,instrlist->arg2);
+                fprintf(file,"%s := %s - %s\n",instrlist->target,instrlist->arg1,instrlist->arg2);
                 break;
             case _STAR:
-                fprintf(file,"%s := %s * %s :\n",instrlist->target,instrlist->arg1,instrlist->arg2);
+                fprintf(file,"%s := %s * %s\n",instrlist->target,instrlist->arg1,instrlist->arg2);
                 break;
                 
             case _DIV:
-                fprintf(file,"%s := %s / %s :\n",instrlist->target,instrlist->arg1,instrlist->arg2);
+                fprintf(file,"%s := %s / %s\n",instrlist->target,instrlist->arg1,instrlist->arg2);
                 break;
             case _GETADDR:
                 fprintf(file,"%s := &%s\n",instrlist->target,instrlist->arg1);
@@ -163,18 +163,128 @@ char *lookup(struct Varm* list,char* name){
     }
     return NULL;
 }
+struct RTtype getType(struct treeNode* node){
+    //node is Exp
+    if (node->sonN == 1 && strcmp(node->sonlist->name,"ID") == 0){
+        //Exp -> ID
+        struct RTtype type;
+        char name[30];
+        struct Varm* var = varmlist;
+        while(var != NULL){
+            if (strcmp(var->name,node->sonlist->value) == 0) break;
+            var = var->next;
+        }
+        type.type = var->type;
+        type.dimension = var->arraydimension;
+        return type;
+    }else if (node->sonN == 1 && strcmp(node->sonlist->name,"INT") == 0){
+        //Exp -> INT
+        struct RTtype type;
+        type.type = _NUMINT;
+        return type;
+    }else if (node->sonN == 1 && strcmp(node->sonlist->name,"FLOAT") == 0){
+        //Exp -> FLOAT
+        struct RTtype type;
+        type.type = _NUMFLOAT;
+        return type;
+    }else if (strcmp(node->sonlist->name,"ID")==0 && strcmp(node->sonlist->next->name,"LP") == 0){
+        //Exp ->ID LP (Args) RP
+        struct RTtype type;
+        type.type = _INT;
+        return type;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"ASSIGNOP") == 0){
+        //Exp ASSIGNOP Exp
+        struct RTtype ltype = getType(node->sonlist);
+        return ltype;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"AND") == 0){
+        //Exp AND Exp
+        struct RTtype rt; 
+        rt.type = _NUMINT;
+        return rt;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"OR") == 0){
+        struct RTtype rt; 
+        rt.type = _NUMINT;
+        return rt;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"RELOP") == 0){
+        struct RTtype rt; 
+        rt.type = _NUMINT;
+        return rt;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"PLUS") == 0){
+        struct RTtype ltype = getType(node->sonlist);
+        return ltype;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"MINUS") == 0){
+        struct RTtype ltype = getType(node->sonlist);
+        return ltype;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"STAR") == 0){
+        struct RTtype ltype = getType(node->sonlist);
+        return ltype;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DIV") == 0){
+        struct RTtype ltype = getType(node->sonlist);
+        return ltype;
+    }else if (node->sonlist != NULL && strcmp(node->sonlist->name,"MINUS") == 0){
+        struct RTtype ltype = getType(node->sonlist->next);
+        return ltype;
+    }else if (node->sonlist != NULL && strcmp(node->sonlist->name,"NOT") == 0){
+        struct RTtype rt; 
+        rt.type = _NUMINT;
+        return rt;
+    }else if (node->sonlist !=NULL && strcmp(node->sonlist->name,"LP") == 0){
+        //LP Exp RP  (Exp)
+        struct RTtype ltype = getType(node->sonlist->next);
+        return ltype;
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"LB") == 0){
+        //Exp LB Exp RB
+        struct RTtype type;
+        type = getType(node->sonlist);
+        
+        if (type.type == _STRUCTARRAY || type.type == _INTARRAY || type.type == _FLOATARRAY){
+            struct RTtype rt;
+            //printf("dimension: %d\n",type.dimension);
+            if (type.dimension == 1) rt.type = type.type - 3; 
+            else{
+                rt.type = type.type;
+                rt.dimension = type.dimension - 1;
+            }
+            return rt;
+        }else{
+            printf("Error type 10 at Line %d: left Exp is not an array.\n",node->lineno);
+        }
+        
+    }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DOT") == 0){
+        //Exp DOT ID
+        //Exp 可以是数组，函数返回值，ID，等
+        //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    } 
+
+    struct RTtype rtt; rtt.type = -1;
+    return rtt;
+}
+
 struct Instr* translate_Args(struct treeNode* node,struct Varm* list,char* arglist,int* argn){
     if (node->sonN == 1){
         //Args -> Exp
         char* t1 = newTemp();
         struct Instr* code1 = translate_Exp(node->sonlist,list,t1);
+        struct RTtype type = getType(node->sonlist);
+        //printf("lineno: %d, type: %d\n",node->lineno,type.type);
+        if (type.type != _INT && type.type != _FLOAT && type.type != _NUMINT && type.type != _NUMFLOAT){
+            char* tmp = (char*)malloc(20);
+            sprintf(tmp,"&%s",t1);
+            t1 = tmp;
+        }
         strcpy(&arglist[*argn * _ArgWidth],t1);
-        *argn++;
+        (*argn)++;
         return code1;
     }else{
         //Args -> Exp COMMA Args
         char* t1 = newTemp();
         struct Instr* code1 = translate_Exp(node->sonlist,list,t1);
+        struct RTtype type = getType(node->sonlist);
+        if (type.type != _INT && type.type != _FLOAT && type.type != _NUMINT && type.type != _NUMFLOAT){
+            char* tmp = (char*)malloc(20);
+            sprintf(tmp,"&%s",t1);
+            t1 = tmp;
+        }
         strcpy(&arglist[*argn * _ArgWidth],t1);
         struct Instr* code2 = translate_Args(node->sonlist->next->next,list,arglist,argn);
         return linkCode(code1,code2);
@@ -194,7 +304,12 @@ struct Instr* cal_offset(struct treeNode* node,char *offset){
     }
     while(var != NULL){
         if (strcmp(var->name,id->value) == 0){
-            struct Instr* code2 = generate_instr(_ASSIGNOP,var->vname,NULL,offset,NULL);
+            char* addrvname = NULL;
+            if (var->vtype == 0){
+                addrvname = (char*)malloc(20);
+                sprintf(addrvname,"&%s",var->vname);
+            }else addrvname = var->vname;
+            struct Instr* code2 = generate_instr(_ASSIGNOP,addrvname,NULL,offset,NULL);
             code1 = linkCode(code1,code2);
             break;
         }
@@ -234,7 +349,12 @@ struct Instr* cal_struct_offset(struct treeNode* node,char* place,struct RTtype*
             if (strcmp(varr->name,node->sonlist->sonlist->value) == 0) break;
             varr = varr->next;
         }
-        struct Instr* code = generate_instr(_ASSIGNOP,varr->vname,NULL,place,NULL);
+        char* addrvname = NULL;
+        if (varr->vtype == 0){
+            addrvname = (char*)malloc(20);
+            sprintf(addrvname,"&%s",varr->vname);
+        }else addrvname = varr->vname;
+        struct Instr* code = generate_instr(_ASSIGNOP,addrvname,NULL,place,NULL);
         struct Structm* str = structlist;
         while(str != NULL){
             if (strcmp(str->name,varr->tname) == 0) break;
@@ -348,8 +468,7 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         return linkCode(linkCode(code1,code2),code3);
     }else if (strcmp(node->sonlist->name,"LP") == 0){
         //Exp -> LP Exp RP
-        char* t = newTemp();
-        return translate_Exp(node->sonlist->next,list,t);
+        return translate_Exp(node->sonlist->next,list,place);
     }else if (strcmp(node->sonlist->name,"MINUS") == 0){
         //MINUS Exp
         char* t1 = newTemp();
@@ -377,7 +496,10 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         char* arglist = (char*)malloc(_ArgMax * _ArgWidth);
         int argn = 0;
         struct Instr* code1 = translate_Args(node->sonlist->next->next,list,arglist,&argn);
-        if (strcmp(node->sonlist->value,"write") == 0) return linkCode(code1,generate_instr(_WRITE,&arglist[0],NULL,NULL,NULL));
+        if (strcmp(node->sonlist->value,"write") == 0){
+            if (arglist[0] == '&') return linkCode(code1,generate_instr(_WRITE,&arglist[1],NULL,NULL,NULL));
+            else return linkCode(code1,generate_instr(_WRITE,&arglist[0],NULL,NULL,NULL));
+        }
         int i = 0;
         struct Instr* code2 = NULL;
         for (i = 0; i<argn; i++) code2 = linkCode(code2,generate_instr(_ARG,&arglist[i * _ArgWidth],NULL,NULL,NULL));
@@ -425,10 +547,18 @@ struct Instr* translate_VarDec(int flag,struct Varm* list,struct treeNode* varde
         newvar->name = vardec->sonlist->value;
         newvar->tname = type->tname;
         newvar->vname = newVname();
+        newvar->vtype = flag;
         newvar->size = cal_TypeLen(type);
         newvar->next = newvar->sonlist = NULL;
         listlast->next = newvar;
         *rtname = newvar->name;
+        char* sizes = (char*)malloc(20);
+        sprintf(sizes,"%d",newvar->size);
+        if (flag == 0 && type->type == _STRUCT){
+            //printf("varname: %s - size: %d - type:%d\n",newvar->name,newvar->size,type->type);
+            struct Instr* code = generate_instr(_DEC,newvar->vname,sizes,NULL,NULL);
+            return code;
+        }
         return NULL;
     }else{
         //VarDec -> VarDec LB INT RB
@@ -445,7 +575,8 @@ struct Instr* translate_VarDec(int flag,struct Varm* list,struct treeNode* varde
         newvar->name = name;
         newvar->tname = type->tname;
         newvar->vname = newVname();
-        newvar->arraydimension = deep;
+        newvar->vtype = flag;
+        newvar->arraydimension = deep-1;
         newvar->arraylen = atoi(vardec->sonlist->next->next->value);
         newvar->next = newvar->sonlist = NULL;
         listlast->next = newvar;
@@ -770,7 +901,24 @@ struct Instr* translate(struct treeNode* node){
     
     return linkCode(code1,code2);
 }
-
+void fast(){
+    struct Instr* p = instrlist;
+    struct Instr* pprev = NULL;
+    while(p != NULL && p->next != NULL){
+        struct Instr* pnext = p->next;
+        if (p->type == _ASSIGNOP){
+            if (pnext->arg2 == NULL && p->target[0] == 't' && strcmp(p->target,pnext->arg1) == 0){
+                strcpy(pnext->arg1,p->arg1);
+                pprev->next = pnext;
+            }else if (pnext->arg2 == NULL && p->target[0] == 't' && strcmp(p->target,&pnext->arg1[1]) == 0){
+                strcpy(&pnext->arg1[1],p->arg1);
+                pprev->next = pnext;
+            } 
+        }
+        pprev = p;
+        p = p->next;
+    }
+}
 int middle(struct treeNode* root){
     varmlist = (struct Varm*)malloc(sizeof(struct Varm));
     varmlist->type == 7;
@@ -779,6 +927,7 @@ int middle(struct treeNode* root){
     structlist = NULL;
     
     instrlist = translate(root->sonlist);
+    fast();
     printf("strat printInstrList...\n");
     printInstrList(instrlist);
     return 0;

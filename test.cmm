@@ -1,4 +1,6 @@
-/*int main()
+//test1
+/*
+int main()
 {
     int n;
     n = read();
@@ -12,7 +14,11 @@
     return 0;
 }
 */
+
+//test2
+/*
 struct ss{
+    int aa;
     struct {
        int b; 
     }a;
@@ -32,15 +38,65 @@ int main()
 {
     int m, result;
     struct ss sss;
-    //int r[10][8];
-    //r[2][3] = 1;
-    //m = read();
+    int r[10][8];
+    r[2][3] = 1;
+    m = read();
     sss.a.b = 1;
     if (m > 1)
         result = fact(m);
     else
         result = 1;
     write(result);
+    return 0;
+}
+*/
+
+//test3
+/*
+struct Operands
+{
+    int o1;
+    int o2;
+};
+int add(struct Operands temp)
+{
+    return (temp.o1 + temp.o2);
+}
+int main()
+{
+    int n;
+    struct Operands op;
+    op.o1 = read();
+    op.o2 = read();
+    n = add(op);
+    write(n);
+    return 0;
+}
+*/
+
+//test4
+
+int add(int temp[2])
+{
+    return (temp[0] + temp[1]);
+}
+int main()
+{
+    int op[2];
+    int r[1][2];
+    int i = 0, j = 0;
+    while (i < 2)
+    {
+        while (j < 2)
+        {
+            op[j] = i + j;
+            j = j + 1;
+        }
+        r[0][i] = add(op);
+        write(r[0][i]);
+        i = i + 1;
+        j = 0;
+    }
     return 0;
 }
 

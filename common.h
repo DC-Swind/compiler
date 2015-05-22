@@ -44,6 +44,7 @@ struct Varm{
     char *name; //int a;  a is name , int is tname, generate a v1 is vname
     char *tname;
     char *vname;
+    int vtype; //0 - _DEC  1- _PARAM
     int arraylen;
     int arraydimension;
     int size;
@@ -105,4 +106,5 @@ struct treeNode{
 
 int middle(struct treeNode* root);
 int checkmean(struct treeNode* root);
+struct RTtype dfsExp(struct treeNode* node);
 #endif
