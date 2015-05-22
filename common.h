@@ -40,12 +40,13 @@ struct Instr{
     struct Instr* next;
 };
 struct Varm{
-    int type;
+    int type;//1-int,2-float,3-struct,4-intarray,5-floatarray,6-structarray,7-{
     char *name; //int a;  a is name , int is tname, generate a v1 is vname
     char *tname;
     char *vname;
     int arraylen;
     int arraydimension;
+    int size;
     struct Varm* next;
     struct Varm* sonlist;
 };

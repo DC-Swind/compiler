@@ -1,0 +1,63 @@
+FUNCTION add :
+PARAM v4
+t2 := v4
+t4 := #0
+t4 := t4 * #4 :
+t2 := t2 + t4 :
+t2 := *t2
+t3 := v4
+t5 := #1
+t5 := t5 * #4 :
+t3 := t3 + t5 :
+t3 := *t3
+t1 := t2 + t3 :
+RETURN t1
+FUNCTION fact :
+PARAM v5
+t6 := v5
+t7 := #1
+IF t6 == t7 GOTO label1
+GOTO label2
+LABEL label1 :
+t8 := v5
+RETURN t8
+GOTO label3
+LABEL label2 :
+t11 := v5
+t14 := v5
+t15 := #1
+t13 := t14 - t15 :
+t12 := CALL fact
+t10 := t11 * t12 :
+RETURN t9
+LABEL label3 :
+FUNCTION main :
+DEC v9 320
+t16 := v9
+t17 := #3
+t17 := t17 * #4 :
+t16 := t16 + t17 :
+t18 := #2
+t18 := t18 * #32 :
+t16 := t16 + t18 :
+t19 := #1
+*t16 := t19
+READ t20
+v6 := t20
+t21 := v6
+t22 := #1
+IF t21 > t22 GOTO label4
+GOTO label5
+LABEL label4 :
+t24 := v6
+t23 := CALL fact
+v7 := t23
+GOTO label6
+LABEL label5 :
+t25 := #1
+v7 := t25
+LABEL label6 :
+t26 := v7
+WRITE t26
+t27 := #0
+RETURN t27

@@ -1,4 +1,4 @@
-int main()
+/*int main()
 {
     int n;
     n = read();
@@ -9,6 +9,37 @@ int main()
             write (-1);
         else 
             write(0);
+    return 0;
+}
+*/
+struct ss{
+    struct {
+       int b; 
+    }a;
+    int c;
+};
+int add(int a[2]){
+    return a[0] + a[1];
+}
+int fact(int n)
+{
+    if (n == 1)
+        return n;
+    else
+        return (n * fact(n - 1));
+}
+int main()
+{
+    int m, result;
+    struct ss sss;
+    int r[10][8];
+    r[2][3] = 1;
+    m = read();
+    if (m > 1)
+        result = fact(m);
+    else
+        result = 1;
+    write(result);
     return 0;
 }
 
