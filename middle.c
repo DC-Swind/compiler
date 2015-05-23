@@ -138,9 +138,18 @@ struct Instr* generate_instr(int type,char* arg1,char* arg2,char* target,char* o
     
     struct Instr* instr = (struct Instr*)malloc(sizeof(struct Instr));
     instr->type = type;
-    instr->arg1 = arg1;
-    instr->arg2 = arg2;
-    instr->target = target;
+    if (arg1 != NULL){
+        instr->arg1 = (char*)malloc(20);
+        sprintf(instr->arg1,"%s",arg1);
+    }else instr->arg1 = NULL;
+    if (arg2 != NULL){
+        instr->arg2 = (char*)malloc(20);
+        sprintf(instr->arg2,"%s",arg2);
+    }else instr->arg2 = NULL;
+    if (target != NULL){
+        instr->target = (char*)malloc(20);
+        sprintf(instr->target,"%s",target);
+    }else instr->target = NULL;
     if (op == NULL) instr->op = NULL; else{
         instr->op = op;
         //strcpy(instr->op,op);
@@ -175,6 +184,7 @@ struct RTtype getType(struct treeNode* node){
             var = var->next;
         }
         type.type = var->type;
+        type.tname = var->tname;
         type.dimension = var->arraydimension;
         return type;
     }else if (node->sonN == 1 && strcmp(node->sonlist->name,"INT") == 0){
@@ -251,9 +261,26 @@ struct RTtype getType(struct treeNode* node){
         }
         
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"DOT") == 0){
-        //Exp DOT ID
+        //Exp -> Exp DOT ID
         //Exp 可以是数组，函数返回值，ID，等
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        struct RTtype type;
+        type = getType(node->sonlist);
+        struct Structm* str = structlist;
+        while(str != NULL){
+            if (strcmp(str->name,type.tname) == 0) break;
+            str = str->next;
+        }
+        struct Varm* var = str->feild;
+        while(var != NULL){
+            if (var->name != NULL && strcmp(var->name,node->sonlist->next->next->value) == 0) break;
+            var = var->next;
+        }
+        struct RTtype rt;
+        rt.type = var->type;
+        rt.tname = var->tname;
+        rt.dimension = 0;
+        return rt;
     } 
 
     struct RTtype rtt; rtt.type = -1;
@@ -409,7 +436,7 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
     }else if (node->sonlist->next != NULL && strcmp(node->sonlist->next->name,"ASSIGNOP") == 0){
         //Exp -> Exp ASSIGNOP Exp
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        //attention , Exp1 can be not ID.
+        //attention , Exp1 can be not ID. 已处理
         //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         char* vname = NULL;
         struct Instr* code0 = NULL;
@@ -808,7 +835,7 @@ struct Instr* translate_DefList(struct Varm* list ,struct treeNode* node){
             struct Instr* codetype = translate_VarDec(0,list,vardec,&type,&name);
             if (list == varmlist){
                 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                //注意这里，需要对struct 进行DEC空间
+                //注意这里，需要对struct 进行DEC空间 ..已处理
                 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                 code1 = linkCode(code1,codetype);
                 char* vname = lookup(list,name);
@@ -901,7 +928,9 @@ struct Instr* translate(struct treeNode* node){
     
     return linkCode(code1,code2);
 }
-void fast(){
+void fast1(){
+    //fast1 to deal with t = v ARG &t, it is not only for speed. t is 4 bit, v can be more. so t = v is error. so it is 
+    //nessary to replace ARG &t with ARG &v
     struct Instr* p = instrlist;
     struct Instr* pprev = NULL;
     while(p != NULL && p->next != NULL){
@@ -919,6 +948,100 @@ void fast(){
         p = p->next;
     }
 }
+void fast2(){
+    //deal with GOTO
+    struct Instr* p = instrlist;
+    while(p != NULL && p->next != NULL && p->next->next != NULL){
+        if (p->type == _IF && p->next->type == _GOTO && p->next->next->type == _LABEL){
+            if (strcmp(p->target,p->next->next->arg1) == 0){
+                int flag = 1;
+                //check if other instr use this label
+                struct Instr* pp = instrlist;
+                while(pp != NULL){
+                    if (pp->type == _GOTO && strcmp(p->target,pp->arg1) == 0){
+                        flag = 0;
+                        break;
+                    }
+                    if (pp->type == _IF && pp != p && strcmp(p->target,pp->target) == 0){
+                        flag = 0;
+                        break;
+                    }
+                    pp = pp->next;
+                }
+                if (strcmp(p->op,"<") == 0) sprintf(p->op,">=");
+                else if (strcmp(p->op,">") == 0) sprintf(p->op,"<=");
+                else if (strcmp(p->op,"<=") == 0) sprintf(p->op,">");
+                else if (strcmp(p->op,">=") == 0) sprintf(p->op,"<");
+                else if (strcmp(p->op,"==") == 0) sprintf(p->op,"!=");
+                else if (strcmp(p->op,"!=") == 0) sprintf(p->op,"==");
+                else flag = 0;
+                if (flag){
+                    sprintf(p->target,"%s",p->next->arg1);
+                    p->next = p->next->next->next;
+                }
+            }
+        }
+        
+        p = p->next;
+    }
+}
+
+void fast3(){
+    struct Instr* p = instrlist;
+    struct Instr* pprev = NULL;
+    while(p != NULL && p->next != NULL){
+        if (p->type == _ASSIGNOP && p->target[0] == 't'){
+            struct Instr* pp = p->next;
+            while(pp != NULL){
+                int stop = 0;
+                switch(pp->type){
+                    case _ASSIGNOP:
+                        if (strcmp(pp->target,p->target) == 0) stop = 1;
+                        if (strcmp(pp->arg1,p->target) == 0){
+                            sprintf(pp->arg1,"%s",p->arg1);
+                        }
+                        break;
+                    case _ADD: case _MINUS: case _STAR: case _DIV:
+                        if (strcmp(pp->target,p->target) == 0) stop = 1;
+                        //printf("%s == %s\n",pp->arg1,p->target);
+                        if (strcmp(pp->arg1,p->target) == 0){
+                            //printf("%s -> %s\n",pp->arg1,p->arg1);
+                            sprintf(pp->arg1,"%s",p->arg1);
+                        }else if (strcmp(pp->arg2,p->target) == 0){
+                            sprintf(pp->arg2,"%s",p->arg1);
+                        } 
+                        break;
+                    case _GETADDR: case _GETVALUE: case _CALL:
+                        // x := &y, y must be a v, x := *y, y must be a +-*/ ans
+                        if (strcmp(pp->target,p->target) == 0) stop = 1;
+                        break;
+                    case _ASSIGNOP_GETVALUE: case _RETURN: case _ARG: case _READ: case _WRITE:
+                        // *x := y, if x must be a +-*/ ans 
+                        if (strcmp(pp->arg1,p->target) == 0){
+                            sprintf(pp->arg1,"%s",p->arg1);
+                        }
+                        break;
+                    case _IF:
+                        if (strcmp(pp->arg1,p->target) == 0){
+                            sprintf(pp->arg1,"%s",p->arg1);
+                        }else if (strcmp(pp->arg2,p->target) == 0){
+                            sprintf(pp->arg2,"%s",p->arg1);
+                        } 
+                        break; 
+                    default:
+                        break;
+                }
+                if (stop) break;
+                pp = pp->next;
+            }
+            pprev->next = p->next;
+            p = pprev;
+        }
+        pprev = p;
+        p = p->next;
+    }
+}
+
 int middle(struct treeNode* root){
     varmlist = (struct Varm*)malloc(sizeof(struct Varm));
     varmlist->type == 7;
@@ -927,7 +1050,13 @@ int middle(struct treeNode* root){
     structlist = NULL;
     
     instrlist = translate(root->sonlist);
-    fast();
+    
+    fast1();
+    
+    fast2();
+    
+    fast3();
+    
     printf("strat printInstrList...\n");
     printInstrList(instrlist);
     return 0;

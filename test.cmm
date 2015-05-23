@@ -75,7 +75,7 @@ int main()
 */
 
 //test4
-
+/*
 int add(int temp[2])
 {
     return (temp[0] + temp[1]);
@@ -99,7 +99,7 @@ int main()
     }
     return 0;
 }
-
+*/
 /*struct s{
     int a;
 }c;
