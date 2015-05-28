@@ -151,7 +151,8 @@ struct Instr* generate_instr(int type,char* arg1,char* arg2,char* target,char* o
         sprintf(instr->target,"%s",target);
     }else instr->target = NULL;
     if (op == NULL) instr->op = NULL; else{
-        instr->op = op;
+        instr->op = (char*)malloc(20);
+        sprintf(instr->op,"%s",op);
         //strcpy(instr->op,op);
     }
     instr->prev = instr->next = NULL;
@@ -313,6 +314,7 @@ struct Instr* translate_Args(struct treeNode* node,struct Varm* list,char* argli
             t1 = tmp;
         }
         strcpy(&arglist[*argn * _ArgWidth],t1);
+        (*argn)++;
         struct Instr* code2 = translate_Args(node->sonlist->next->next,list,arglist,argn);
         return linkCode(code1,code2);
     }
@@ -513,6 +515,7 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         return linkCode(linkCode(code1,code2),code3);
     }else if (node->sonlist->next->next!=NULL && strcmp(node->sonlist->next->next->name,"RP") == 0){
         //Exp -> ID LP RP
+        if (place == NULL) place = newTemp();
         if (strcmp(node->sonlist->value,"read") == 0){
             return generate_instr(_READ,place,NULL,NULL,NULL);
         }else{
@@ -522,6 +525,7 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         //Exp -> ID LP Args RP
         char* arglist = (char*)malloc(_ArgMax * _ArgWidth);
         int argn = 0;
+        if (place == NULL) place = newTemp();
         struct Instr* code1 = translate_Args(node->sonlist->next->next,list,arglist,&argn);
         if (strcmp(node->sonlist->value,"write") == 0){
             if (arglist[0] == '&') return linkCode(code1,generate_instr(_WRITE,&arglist[1],NULL,NULL,NULL));
@@ -529,7 +533,8 @@ struct Instr* translate_Exp(struct treeNode* node,struct Varm* list,char* place)
         }
         int i = 0;
         struct Instr* code2 = NULL;
-        for (i = 0; i<argn; i++) code2 = linkCode(code2,generate_instr(_ARG,&arglist[i * _ArgWidth],NULL,NULL,NULL));
+        //printf("argn is %d\n",argn);
+        for (i = argn-1; i>=0; i--) code2 = linkCode(code2,generate_instr(_ARG,&arglist[i * _ArgWidth],NULL,NULL,NULL));
         return linkCode(linkCode(code1,code2),generate_instr(_CALL,node->sonlist->value,NULL,place,NULL));
     }else if (node->sonN == 4 && strcmp(node->sonlist->next->name,"LB") == 0){
         //Exp -> Exp LB Exp RB
@@ -952,37 +957,78 @@ void fast2(){
     //deal with GOTO
     struct Instr* p = instrlist;
     while(p != NULL && p->next != NULL && p->next->next != NULL){
+        int next = 1;
         if (p->type == _IF && p->next->type == _GOTO && p->next->next->type == _LABEL){
             if (strcmp(p->target,p->next->next->arg1) == 0){
+                //if  goto l1;  goto l2; label l1
                 int flag = 1;
-                //check if other instr use this label
+                char *replaceop;
+                if (strcmp(p->op,"<") == 0) replaceop = ">=";
+                else if (strcmp(p->op,">") == 0) replaceop = "<=";
+                else if (strcmp(p->op,"<=") == 0) replaceop = ">";
+                else if (strcmp(p->op,">=") == 0) replaceop = "<";
+                else if (strcmp(p->op,"==") == 0) replaceop = "!=";
+                else if (strcmp(p->op,"!=") == 0) replaceop = "==";
+                else flag = 0;
+                
+                if (flag){
+                    sprintf(p->op,"%s",replaceop);
+                    sprintf(p->target,"%s",p->next->arg1);
+                    p->next = p->next->next;
+                    //if ! goto l2; label l1;
+                    int flag2 = 1;
+                    //check if other instr use this label
+                    struct Instr* pp = instrlist;
+                    while(pp != NULL){
+                        if (pp->type == _GOTO && strcmp(p->next->arg1,pp->arg1) == 0){
+                            flag2 = 0;
+                            break;
+                        }
+                        if (pp->type == _IF && strcmp(p->next->arg1,pp->target) == 0){
+                            flag2 = 0;
+                            break;
+                        }
+                        pp = pp->next;
+                    }
+                    if (flag2){
+                        p->next = p->next->next;
+                    }
+                }
+            }else if (strcmp(p->next->arg1,p->next->next->arg1) == 0){
+                //if goto l1; goto l2; label l2;
+                //goto l2一定没有用
+                p->next = p->next->next;
+                //label l2可能没有用
                 struct Instr* pp = instrlist;
+                int flag = 1;
                 while(pp != NULL){
-                    if (pp->type == _GOTO && strcmp(p->target,pp->arg1) == 0){
+                    if (pp->type == _GOTO && strcmp(p->next->arg1,pp->arg1) == 0){
                         flag = 0;
                         break;
                     }
-                    if (pp->type == _IF && pp != p && strcmp(p->target,pp->target) == 0){
+                    if (pp->type == _IF && strcmp(p->next->arg1,pp->target) == 0){
                         flag = 0;
                         break;
                     }
                     pp = pp->next;
                 }
-                if (strcmp(p->op,"<") == 0) sprintf(p->op,">=");
-                else if (strcmp(p->op,">") == 0) sprintf(p->op,"<=");
-                else if (strcmp(p->op,"<=") == 0) sprintf(p->op,">");
-                else if (strcmp(p->op,">=") == 0) sprintf(p->op,"<");
-                else if (strcmp(p->op,"==") == 0) sprintf(p->op,"!=");
-                else if (strcmp(p->op,"!=") == 0) sprintf(p->op,"==");
-                else flag = 0;
-                if (flag){
-                    sprintf(p->target,"%s",p->next->arg1);
-                    p->next = p->next->next->next;
-                }
+                if (flag) p->next = p->next->next;
             }
+        }else if (p->type ==_LABEL && p->next->type == _LABEL){
+            struct Instr* pp = instrlist;
+            while(pp != NULL){
+                if (pp->type == _GOTO && strcmp(p->next->arg1,pp->arg1) == 0){
+                    sprintf(pp->arg1,"%s",p->arg1);
+                }
+                if (pp->type == _IF && strcmp(p->next->arg1,pp->target) == 0){
+                    sprintf(pp->target,"%s",p->arg1);
+                }
+                pp = pp->next;
+            }
+            p->next = p->next->next;
+            next = 0;
         }
-        
-        p = p->next;
+        if (next) p = p->next;
     }
 }
 
@@ -1050,12 +1096,12 @@ int middle(struct treeNode* root){
     structlist = NULL;
     
     instrlist = translate(root->sonlist);
-    
+    printf("start optimize middle code 1...\n");
     fast1();
-    
+    printf("start optimize middle code 2...\n");
     fast2();
-    
-    fast3();
+    printf("start optimize middle code 3...\n");
+    //fast3();
     
     printf("strat printInstrList...\n");
     printInstrList(instrlist);
