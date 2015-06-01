@@ -1087,7 +1087,47 @@ void fast3(){
         p = p->next;
     }
 }
-
+void fast4(){
+    struct Instr* p = instrlist;
+    while(p != NULL && p->next != NULL){
+        if ((p->type == _ADD || p->type ==_MINUS || p->type == _STAR || p->type == _DIV) && p->target[0] == 't')
+            if (p->next->type == _ASSIGNOP && strcmp(p->next->arg1,p->target) == 0){
+                struct Instr* pp = p->next->next;
+                int stop = 0;
+                while(pp != NULL){
+                    switch(pp->type){
+                        case _ASSIGNOP:
+                            if (strcmp(pp->arg1,p->target) == 0) stop = 1;
+                            break;
+                        case _ADD: case _MINUS: case _STAR: case _DIV:
+                            if (strcmp(pp->arg1,p->target) == 0 || strcmp(pp->arg2,p->target) == 0) stop = 1; 
+                            break;
+                        case _GETVALUE:
+                            if (strcmp(pp->arg1,p->target) == 0) stop = 1;
+                            break;
+                        case _ASSIGNOP_GETVALUE: 
+                            if (strcmp(p->target,pp->target) == 0 || strcmp(p->target,pp->arg1) == 0) stop = 1;
+                            break;
+                        case _RETURN: case _ARG: case _READ: case _WRITE:
+                            if (strcmp(pp->arg1,p->target) == 0) stop = 1;
+                            break;
+                        case _IF:
+                            if (strcmp(pp->arg1,p->target) == 0 || strcmp(pp->arg2,p->target) == 0) stop = 1;
+                            break; 
+                        default:
+                            break;
+                    }
+                    if (stop) break;
+                    pp = pp->next;
+                }
+                if (!stop){
+                    sprintf(p->target,"%s",p->next->target);
+                    p->next = p->next->next;
+                }
+            }
+        p = p->next;
+    }
+}
 int middle(struct treeNode* root){
     varmlist = (struct Varm*)malloc(sizeof(struct Varm));
     varmlist->type == 7;
@@ -1102,6 +1142,8 @@ int middle(struct treeNode* root){
     fast2();
     printf("start optimize middle code 3...\n");
     fast3();
+    printf("start optimize middle code 4...\n");
+    fast4();
     
     printf("strat printInstrList...\n");
     printInstrList(instrlist);
