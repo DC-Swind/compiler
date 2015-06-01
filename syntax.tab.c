@@ -1479,7 +1479,7 @@ yyreduce:
     {
         case 2:
 #line 39 "syntax.y" /* yacc.c:1646  */
-    {(yyval) = createNode((yyloc).first_line,"Program",1,(yyvsp[0])); if (occurError == 0) {printTree((yyval),0); /*checkmean($$);*/ middle((yyval));}}
+    {(yyval) = createNode((yyloc).first_line,"Program",1,(yyvsp[0])); if (occurError == 0) {/*printTree($$,0);*/ /*checkmean($$);*/ middle((yyval));}}
 #line 1484 "syntax.tab.c" /* yacc.c:1646  */
     break;
 
@@ -2123,6 +2123,18 @@ int main(int argc, char** argv){
         if(!(yyin = fopen(argv[1],"r"))){
             perror(argv[1]);
             return 1;
+        }
+        
+        if (argc > 2){
+            if(!(output = fopen(argv[2],"w+"))){
+                perror(argv[2]);
+                return 1;
+            }
+        }else{
+            if(!(output = fopen("output.ir","w+"))){
+                perror(argv[2]);
+                return 1;
+            }
         }
     }else return 1;
     //yyrestart(f);
