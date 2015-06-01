@@ -1,12 +1,19 @@
-/*int func(int a[10]){
+int func(int a[10]){
 
 }
 
 int main(){
     int b[10];
-    func(b);
+    int sum = 0;
+    int i=0;
+    while(i<10){
+        i = i + 1;
+        sum = sum + i;
+    }
+    write(sum);
+    //func(b);
     return 0;
-}*/
+}
 //test 16
 /*
 int main(){
@@ -173,7 +180,7 @@ int main()
 */
 
 //test4
-
+/*
 int add(int temp[2])
 {
     return (temp[0] + temp[1]);
@@ -197,7 +204,7 @@ int main()
     }
     return 0;
 }
-
+*/
 /*struct s{
     int a;
 }c;
