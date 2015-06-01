@@ -1,6 +1,7 @@
 #ifndef _COMMON__H_
 #define _COMMON__H_
 
+#include <stdio.h>
 #define _INT 1
 #define _FLOAT 2
 #define _STRUCT 3
@@ -107,4 +108,5 @@ struct treeNode{
 int middle(struct treeNode* root);
 int checkmean(struct treeNode* root);
 struct RTtype dfsExp(struct treeNode* node);
+FILE *output;
 #endif

@@ -51,8 +51,8 @@ int getExpValue(struct treeNode* node){
 }
 
 int printInstrList(struct Instr* instrlist){
-    //FILE* file = fopen("output.rs","a+");
-    FILE* file = fopen("output.ir","w+");
+    FILE* file = output;
+    //FILE* file = fopen("output.ir","w+");
     if (file == NULL){
         printf("Can not open file.\n");
         return 0;
@@ -1101,7 +1101,7 @@ int middle(struct treeNode* root){
     printf("start optimize middle code 2...\n");
     fast2();
     printf("start optimize middle code 3...\n");
-    //fast3();
+    fast3();
     
     printf("strat printInstrList...\n");
     printInstrList(instrlist);

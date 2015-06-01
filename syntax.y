@@ -154,6 +154,18 @@ int main(int argc, char** argv){
             perror(argv[1]);
             return 1;
         }
+        
+        if (argc > 2){
+            if(!(output = fopen(argv[2],"w+"))){
+                perror(argv[2]);
+                return 1;
+            }
+        }else{
+            if(!(output = fopen("output.ir","w+"))){
+                perror(argv[2]);
+                return 1;
+            }
+        }
     }else return 1;
     //yyrestart(f);
     //yydebug = 1;
