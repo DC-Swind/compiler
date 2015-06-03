@@ -16,7 +16,7 @@ int main(){
 }
 */
 //test 16
-
+/*
 int main(){
     int a = 3, b = 4, i = 0, sum = 0;
     int c, d, e;
@@ -57,7 +57,7 @@ int main(){
     write(sum);
     return 0;
 }
-
+*/
 //test 15
 /*
 int product (int m1[4], int m2[4]){
@@ -158,7 +158,7 @@ int main()
 */
 
 //test3
-/*
+
 struct Operands
 {
     int o1;
@@ -178,7 +178,7 @@ int main()
     write(n);
     return 0;
 }
-*/
+
 
 //test4
 /*
