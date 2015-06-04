@@ -33,6 +33,7 @@
 #define __GLOBL 103
 #define __TEXT 104
 
+#define __UNDEFINED 200
 FILE *dest = NULL;
 struct Code{
     int type;
@@ -64,8 +65,8 @@ int getReg(char* varname){
     //second , store a reg to memory to get a reg or get a reg immediately
     
     //third , allocate this reg to varname
-    
-    return 0;
+    printf("%s\n",varname);
+    return -1;
 }
 int convertreg(char* name){
     if (strcmp(name,"$zero") == 0) return 0;
@@ -75,6 +76,8 @@ int convertreg(char* name){
     if (strcmp(name,"$sp") == 0) return 29;
     if (strcmp(name,"$fp") == 0) return 30;
     if (strcmp(name,"$ra") == 0) return 31;
+    if (strcmp(name,"$a0") == 0) return 4;
+    printf("%s\n",name);
     return -1;
 }
 char* regToString(int i){
@@ -132,7 +135,8 @@ int start(){
                 break;
             }
             case _FUNCTION:{
-                //fprintf(file,"FUNCTION %s :\n",instrlist->arg1);
+                struct Code* code = newCode(__FUNC,-1,-1,-1,p->arg1);
+                linkcode(codelist,code);
                 break;
             }
             case _ASSIGNOP:{
@@ -143,7 +147,7 @@ int start(){
                     linkcode(codelist,code);
                 }else{
                     int reg1 = getReg(p->target);
-                    struct Code* code = newCode(__LI,reg1,-1,-1,p->arg1);
+                    struct Code* code = newCode(__LI,reg1,-1,-1,&p->arg1[1]);
                     linkcode(codelist,code);
                 }
                 break;
@@ -156,7 +160,7 @@ int start(){
                     struct Code* code = newCode(__ADD,reg0,reg1,reg2,NULL);
                     linkcode(codelist,code);
                 }else{
-                    struct Code* code = newCode(__ADDI,reg0,reg1,-1,p->arg2);
+                    struct Code* code = newCode(__ADDI,reg0,reg1,-1,&p->arg2[1]);
                     linkcode(codelist,code);
                 }
                 break;
@@ -170,7 +174,7 @@ int start(){
                     linkcode(codelist,code);
                 }else{
                     char arg[20];
-                    sprintf(arg,"-%s",p->arg2);
+                    sprintf(arg,"-%s",&p->arg2[1]);
                     struct Code* code = newCode(__ADDI,reg0,reg1,-1,arg);
                     linkcode(codelist,code);
                 }
@@ -194,6 +198,8 @@ int start(){
                 break;
             }
             case _GETADDR:{
+                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                linkcode(codelist,code);
                 //fprintf(file,"%s := &%s\n",instrlist->target,instrlist->arg1);
                 break;
             }
@@ -236,19 +242,29 @@ int start(){
                 break;
             }
             case _RETURN:{
-                int reg1 = getReg(p->arg1);
-                int reg2 = convertreg("$vo");
+                int reg2 = convertreg("$v0");
                 int reg3 = convertreg("$ra");
-                struct Code* code1 = newCode(__MOVE,reg2,reg1,-1,NULL);
+                struct Code* code1 = NULL;
+                if (p->arg1[0] == '#'){
+                    code1 = newCode(__LI,reg2,-1,-1,&p->arg1[1]);
+                }else{
+                    int reg1 = getReg(p->arg1);
+                    code1 = newCode(__MOVE,reg2,reg1,-1,NULL);
+                }
+                
                 struct Code* code2 = newCode(__JR,reg3,-1,-1,NULL);
                 linkcode(codelist,linkcode(code1,code2));
                 break;
             }
             case _DEC:{
+                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                linkcode(codelist,code);
                 //fprintf(file,"DEC %s %s\n",instrlist->arg1,instrlist->arg2);
                 break;
             }
             case _ARG:{
+                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                linkcode(codelist,code);
                 //fprintf(file,"ARG %s\n",instrlist->arg1);
                 break;
             }
@@ -261,15 +277,48 @@ int start(){
                 break;
             }
             case _PARAM:{
+                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                linkcode(codelist,code);
                 //fprintf(file,"PARAM %s\n",instrlist->arg1);
                 break;
             }
             case _READ:{
-                //fprintf(file,"READ %s\n",instrlist->arg1);
+                struct Code* code = NULL;
+                int reg1 = convertreg("$sp");
+                int reg2 = convertreg("$ra");
+                int reg3 = getReg(p->arg1);
+                int reg4 = convertreg("$v0");
+                code = newCode(__ADDI,reg1,reg1,-1,"-4");
+                linkcode(codelist,code);
+                code = newCode(__SW,reg2,reg1,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__JAL,-1,-1,-1,"read");
+                linkcode(codelist,code);
+                code = newCode(__LW,reg2,reg1,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__ADDI,reg1,reg1,-1,"4");
+                linkcode(codelist,code);
+                code = newCode(__MOVE,reg3,reg4,-1,NULL);
                 break;
             }
             case _WRITE:{
-                //fprintf(file,"WRITE %s\n",instrlist->arg1);
+                struct Code* code = NULL;
+                int reg1 = convertreg("$sp");
+                int reg2 = convertreg("$ra");
+                int reg3 = convertreg("$a0");
+                int reg4 = getReg(p->arg1);
+                code = newCode(__MOVE,reg3,reg4,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__ADDI,reg1,reg1,-1,"-4");
+                linkcode(codelist,code);
+                code = newCode(__SW,reg2,reg1,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__JAL,-1,-1,-1,"write");
+                linkcode(codelist,code);
+                code = newCode(__LW,reg2,reg1,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__ADDI,reg1,reg1,-1,"4");
+                linkcode(codelist,code);
                 break;
             }
         }
@@ -288,14 +337,14 @@ int init_destination(){
     code = newCode(__FUNC,-1,-1,-1,"read");
     linkcode(codelist,code);
     int reg1 = convertreg("$v0");
-    code = newCode(__LI,reg1,-1,-1,"#4");
+    code = newCode(__LI,reg1,-1,-1,"4");
     linkcode(codelist,code);
     int reg2 = convertreg("$a0");
     code = newCode(__LA,reg2,-1,-1,"_prompt");
     linkcode(codelist,code);
     code = newCode(__SYSCALL,-1,-1,-1,NULL);
     linkcode(codelist,code);
-    code = newCode(__LI,reg1,-1,-1,"#5");
+    code = newCode(__LI,reg1,-1,-1,"5");
     linkcode(codelist,code);
     code = newCode(__SYSCALL,-1,-1,-1,NULL);
     linkcode(codelist,code);
@@ -304,11 +353,11 @@ int init_destination(){
     linkcode(codelist,code);
     code = newCode(__FUNC,-1,-1,-1,"write");
     linkcode(codelist,code);
-    code = newCode(__LI,reg1,-1,-1,"#1");
+    code = newCode(__LI,reg1,-1,-1,"1");
     linkcode(codelist,code);
     code = newCode(__SYSCALL,-1,-1,-1,NULL);
     linkcode(codelist,code);
-    code = newCode(__LI,reg1,-1,-1,"#4");
+    code = newCode(__LI,reg1,-1,-1,"4");
     linkcode(codelist,code);
     code = newCode(__LA,reg2,-1,-1,"_ret");
     linkcode(codelist,code);
@@ -323,7 +372,7 @@ int init_destination(){
     datalist = newData(__DATA,NULL,NULL);
     data = newData(__ASCIIZ,"_prompt","Enter an integer:");
     linkdata(datalist,data);
-    data = newData(__ASCIIZ,"_ret","\n");
+    data = newData(__ASCIIZ,"_ret","\\n");
     linkdata(datalist,data);
     data = newData(__GLOBL,"main",NULL);
     linkdata(datalist,data);
@@ -360,33 +409,73 @@ int print_destination(){
                 fprintf(dest,"%s:\n",code->arg1);
                 break;
             case __LI:
-                fprintf(dest,"li %d, %s\n",code->reg1,code->arg1);
+                fprintf(dest,"li $%d, %s\n",code->reg1,code->arg1);
                 break;
             case __MOVE:
-                fprintf(dest,"move %d, %d\n",code->reg1,code->reg2);
+                fprintf(dest,"move $%d, $%d\n",code->reg1,code->reg2);
                 break;
             case __ADDI:
-                fprintf(dest,"addi %d, %d, %s\n",code->reg1,code->reg2,code->arg1);
+                fprintf(dest,"addi $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
                 break;
             case __ADD:
-                fprintf(dest,"add %d, %d, %d\n",code->reg1,code->reg2,code->reg3);
+                fprintf(dest,"add $%d, $%d, $%d\n",code->reg1,code->reg2,code->reg3);
                 break;
             case __SUB:
-                fprintf(dest,"sub %d, %d, %d\n",code->reg1,code->reg2,code->reg3);
+                fprintf(dest,"sub $%d, $%d, $%d\n",code->reg1,code->reg2,code->reg3);
                 break;
             case __MUL:
-                fprintf(dest,"mul %d, %d, %d\n",code->reg1,code->reg2,code->reg3);
+                fprintf(dest,"mul $%d, $%d, $%d\n",code->reg1,code->reg2,code->reg3);
                 break;
             case __DIV:
-                fprintf(dest,"div %d, %d\n",code->reg1,code->reg2);
+                fprintf(dest,"div $%d, $%d\n",code->reg1,code->reg2);
                 break;
             case __MFLO:
-                fprintf(dest,"mflo %d\n",code->reg1);
+                fprintf(dest,"mflo $%d\n",code->reg1);
                 break;
             case __LW:
-                
+                fprintf(dest,"lw $%d, 0($%d)\n",code->reg1,code->reg2);
+                break;
+            case __SW:
+                fprintf(dest,"sw $%d, 0($%d)\n",code->reg1,code->reg2);
+                break;
+            case __J:
+                fprintf(dest,"j %s\n",code->arg1);
+                break;
+            case __JAL:
+                fprintf(dest,"jal %s\n",code->arg1);
+                break;
+            case __JR:
+                fprintf(dest,"jr $%d\n",code->reg1);
+                break;
+            case __BEQ:
+                fprintf(dest,"beq $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __BNE:
+                fprintf(dest,"bne $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __BGT:
+                fprintf(dest,"bgt $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __BLT:
+                fprintf(dest,"blt $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __BGE:
+                fprintf(dest,"bge $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __BLE:
+                fprintf(dest,"ble $%d, $%d, %s\n",code->reg1,code->reg2,code->arg1);
+                break;
+            case __FUNC:
+                fprintf(dest,"%s:\n",code->arg1);
+                break;
+            case __SYSCALL:
+                fprintf(dest,"syscall\n");
+                break;
+            case __LA:
+                fprintf(dest,"la $%d, %s\n",code->reg1,code->arg1);
+                break;
             default:
-                fprintf(dest,"undefined code instr.\n");
+                fprintf(dest,"undefined code instr.type is %d\n",code->type);
         }
         code = code->next;
     }
