@@ -1,21 +1,16 @@
-FUNCTION add :
-PARAM v3
-t2 := v3 + #0
-t2 := *t2
-t3 := v3 + #4
-t3 := *t3
-t1 := t2 + t3
-RETURN t1
 FUNCTION main :
-DEC v5 8
-t4 := &v5 + #0
-READ t5
-*t4 := t5
-t6 := &v5 + #4
-READ t7
-*t6 := t7
-ARG &v5
-t8 := CALL add
-v4 := t8
-WRITE v4
+v1 := #0
+v2 := #1
+v3 := #0
+READ t4
+v4 := t4
+LABEL label1 :
+IF v3 >= v4 GOTO label3
+v5 := v1 + v2
+WRITE v2
+v1 := v2
+v2 := v5
+v3 := v3 + #1
+GOTO label1
+LABEL label3 :
 RETURN #0

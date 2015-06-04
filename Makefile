@@ -1,7 +1,7 @@
 GITFLAGS = -m "Makefile auto commit" --no-verify --allow-empty
 
-parser:	syntax.tab.c checkmean.c middle.c 
-	gcc syntax.tab.c checkmean.c middle.c -lfl -ly -o parser
+parser:	syntax.tab.c checkmean.c middle.c destination.c
+	gcc syntax.tab.c checkmean.c middle.c destination.c -lfl -ly -o parser
 	
 syntax.tab.c: lex.yy.c
 	bison -d -v syntax.y

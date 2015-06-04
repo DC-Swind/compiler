@@ -107,6 +107,8 @@ struct treeNode{
 
 int middle(struct treeNode* root);
 int checkmean(struct treeNode* root);
+int destination();
 struct RTtype dfsExp(struct treeNode* node);
 FILE *output;
+extern struct Instr *instrlist;
 #endif
