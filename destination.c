@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "common.h"
 
 #define __LABEL 1
@@ -51,22 +52,181 @@ struct Data{
 };
 struct Code *codelist = NULL;
 struct Data *datalist = NULL;
+int allocatetime = 0;
 struct VarReg{
     char* var;  //v1 or t1
     int reg;    //reg
+    int stackoffset;
+    int time;
     struct VarReg* next;
 };
 struct VarReg* varreg = NULL;
 int regf[32];
+struct Code* newCode(int type,int reg1,int reg2,int reg3,char* arg1);
+struct Code* linkcode(struct Code* code1, struct Code* code2);
+int printVarReg(){
+    struct VarReg* p = varreg;
+    while(p != NULL){
+        printf("var:%s - reg:%d - offset:%d\n",p->var,p->reg,p->stackoffset);
+        p = p->next;
+    }
+    printf("-------------------------------------\n");
+    return 0;
+}
+int saveAllReg(){
+    
+    struct VarReg* p = varreg;
+    while(p != NULL){
+        if (p->reg != -1){
+            if (p->var[0] == '#') printf("saveAllReg occured error.\n");
+            struct Code* code = NULL;
+            int reg = convertreg("$fp");
+            char arg[20];
+            sprintf(arg,"-%d",p->stackoffset);
+            code = newCode(__ADDI,24,reg,-1,arg);
+            linkcode(codelist,code);
+            code = newCode(__SW,p->reg,24,-1,NULL);
+            linkcode(codelist,code);
+            regf[p->reg] = 0;
+            p->reg = -1;
+        }
+        p = p->next;
+    }
+    
+    return 0;
+}
 
-int getReg(char* varname){
-    //first , check varreg list or if a #1, allocate a reg directly
+int getReg(char* varname,int target){
+    //保留24/25两个寄存器
+    //first , check varreg list, 如果有这个varname，并且分配了reg，则立即返回
+    struct VarReg* p = varreg;
+    struct VarReg* tail = NULL;
+    while(p != NULL){
+        if (strcmp(p->var,varname) == 0) break;
+        tail = p;
+        p = p->next;
+    }
+    if(p != NULL && p->reg != -1) return p->reg;
     
-    //second , store a reg to memory to get a reg or get a reg immediately
     
-    //third , allocate this reg to varname
-    printf("%s\n",varname);
-    return -1;
+    if (varname[0] == '#'){
+        struct VarReg* newvar = malloc(sizeof(struct VarReg));
+        newvar->var = malloc(20);
+        strcpy(newvar->var,varname);
+        newvar->reg = -1;
+        newvar->time = allocatetime++;
+        newvar->next = NULL;
+        
+        int i,mintime = 999999999;
+        struct VarReg* min = NULL;
+        struct VarReg* minpre = NULL;
+        for(i = 8; i<12; i++) if (regf[i] == 0){
+            newvar->reg = i;
+            if(varreg == NULL) varreg = newvar;
+            else tail->next = newvar;
+            
+            struct Code* code = newCode(__LI,i,-1,-1,&varname[1]);
+            linkcode(codelist,code);
+            regf[i] = 1;
+            return i;
+        }
+        p = varreg;
+        while(p != NULL){
+            if (p->reg != -1 && p->time < mintime){
+                mintime = p->time;
+                min = p;
+            }
+            p = p->next;
+        }
+        newvar->reg = min->reg;
+        tail->next = newvar;   //不可能为NULL，因为寄存器都分配完了，必然不会NULL
+        if(min->var[0] == '#'){
+            minpre = varreg;
+            while(minpre->next != min) minpre = minpre->next;
+            minpre->next = min->next;
+            free(min);
+        }else{
+            struct Code* code = NULL;
+            int reg = convertreg("$fp");
+            char arg[20];
+            sprintf(arg,"-%d",min->stackoffset);
+            code = newCode(__ADDI,24,reg,-1,arg);
+            linkcode(codelist,code);
+            code = newCode(__SW,min->reg,24,-1,NULL);
+            linkcode(codelist,code);
+        }
+        struct Code* code = newCode(__LI,newvar->reg,-1,-1,&varname[1]);
+        linkcode(codelist,code);
+        min->reg = -1;
+        return newvar->reg;
+    }
+    p->time = allocatetime++;
+    
+    int i;
+    for(i = 8; i<12; i++) if (regf[i] == 0){
+        p->reg = i;
+        regf[i] = 1;
+        
+        if (target == 0){
+            struct Code* code = NULL;
+            int reg = convertreg("$fp");
+            char arg[20];
+            sprintf(arg,"-%d",p->stackoffset);
+            code = newCode(__ADDI,24,reg,-1,arg);
+            linkcode(codelist,code);
+            code = newCode(__LW,p->reg,24,-1,NULL);
+            linkcode(codelist,code);
+        }
+    
+        return p->reg;
+    }
+    
+    
+    int mintime = 999999999;
+    struct VarReg *min = NULL;
+    struct VarReg *minpre = NULL;
+    struct VarReg *pp = varreg;
+    while(pp != NULL){
+        if (pp->reg != -1 && pp->time < mintime){
+            mintime = pp->time;
+            min = pp;
+        }
+        pp = pp->next;
+    }
+    //printf("old:%s,%d   new:%s,%d    target:%d\n",min->var,min->reg,p->var,p->reg,target);
+    p->reg = min->reg;
+        
+    if(min->var[0] == '#'){
+        minpre = varreg;
+        while(minpre->next != min) minpre = minpre->next;
+        assert(minpre != NULL);
+        minpre->next = min->next;
+        free(min);
+    }else{
+        struct Code* code = NULL;
+        int reg = convertreg("$fp");
+        char arg[20];
+        sprintf(arg,"-%d",min->stackoffset);
+        code = newCode(__ADDI,24,reg,-1,arg);
+        linkcode(codelist,code);
+        code = newCode(__SW,min->reg,24,-1,NULL);
+        linkcode(codelist,code);
+    }
+    min->reg = -1;
+    if (target == 0){
+        //printf();
+        struct Code* code = NULL;
+        int reg = convertreg("$fp");
+        char arg[20];
+        sprintf(arg,"-%d",p->stackoffset);
+        code = newCode(__ADDI,24,reg,-1,arg);
+        linkcode(codelist,code);
+        code = newCode(__LW,p->reg,24,-1,NULL);
+        linkcode(codelist,code);
+    }
+    
+    
+    return p->reg;    
 }
 int convertreg(char* name){
     if (strcmp(name,"$zero") == 0) return 0;
@@ -130,6 +290,7 @@ int start(){
     while(p!=NULL){
         switch(p->type){
             case _LABEL:{
+                saveAllReg();
                 struct Code* code = newCode(__LABEL,-1,-1,-1,p->arg1);
                 linkcode(codelist,code);
                 break;
@@ -137,42 +298,112 @@ int start(){
             case _FUNCTION:{
                 struct Code* code = newCode(__FUNC,-1,-1,-1,p->arg1);
                 linkcode(codelist,code);
+                int reg1 = convertreg("$fp");
+                int reg2 = convertreg("$sp");
+                code = newCode(__MOVE,reg1,reg2,-1,NULL);
+                linkcode(codelist,code);
+                
+                int offset = 4;
+                struct Instr *pp = p;
+                while(pp!=NULL && pp->type!=_RETURN){
+                    if(pp->type==_ASSIGNOP||pp->type==_ADD||pp->type==_MINUS||pp->type==_STAR||pp->type==_DIV||pp->type==_GETVALUE||pp->type==_GETADDR||pp->type==_CALL){
+                        struct VarReg* var = varreg;
+                        struct VarReg* newvar = malloc(sizeof(struct VarReg));
+                        newvar->var = malloc(20);
+                        strcpy(newvar->var,pp->target);
+                        newvar->reg = -1;
+                        newvar->stackoffset = offset;
+                        newvar->next = NULL;
+                        
+                        int flag = 1;
+                        if(varreg == NULL){
+                            varreg = newvar;
+                            offset += 4;
+                        }else{
+                            while(var->next != NULL){
+                                if(strcmp(var->var,newvar->var) == 0){
+                                    flag = 0;
+                                    break;
+                                }
+                                var = var->next;
+                            }
+                            if (flag && strcmp(var->var,newvar->var) != 0){
+                                var->next = newvar;
+                                offset += 4;
+                            }
+                        }
+                    }else if (pp->type == _DEC || pp->type == _READ){
+                        struct VarReg* var = varreg;
+                        struct VarReg* newvar = malloc(sizeof(struct VarReg));
+                        newvar->var = malloc(20);
+                        strcpy(newvar->var,pp->arg1);
+                        newvar->reg = -1;
+                        newvar->stackoffset = offset;
+                        newvar->next = NULL;
+                        
+                        int flag = 1;
+                        if(varreg == NULL){
+                            varreg = newvar;
+                            offset += 4;
+                        }else{
+                            while(var->next != NULL){
+                                if(strcmp(var->var,newvar->var) == 0){
+                                    flag = 0;
+                                    break;
+                                }
+                                var = var->next;
+                            }
+                            if (flag && strcmp(var->var,newvar->var) != 0){
+                                var->next = newvar;
+                                offset += 4;
+                            }
+                        }
+                    }
+                    pp = pp->next;
+                }
+                char arg[20];
+                sprintf(arg,"-%d",offset-4);
+                code = newCode(__ADDI,reg2,reg2,-1,arg);
+                linkcode(codelist,code);
+                
                 break;
             }
             case _ASSIGNOP:{
                 if(p->arg1[0] != '#'){
-                    int reg1 = getReg(p->target);
-                    int reg2 = getReg(p->arg1);
+                    int reg2 = getReg(p->arg1,0);
+                    int reg1 = getReg(p->target,1);
                     struct Code* code = newCode(__MOVE,reg1,reg2,-1,NULL);
                     linkcode(codelist,code);
                 }else{
-                    int reg1 = getReg(p->target);
+                    int reg1 = getReg(p->target,1);
                     struct Code* code = newCode(__LI,reg1,-1,-1,&p->arg1[1]);
                     linkcode(codelist,code);
                 }
                 break;
             }
             case _ADD:{
-                int reg0 = getReg(p->target);
-                int reg1 = getReg(p->arg1);
+                int reg1 = getReg(p->arg1,0);
                 if (p->arg2[0] != '#'){
-                    int reg2 = getReg(p->arg2);
+                    int reg2 = getReg(p->arg2,0);
+                    int reg0 = getReg(p->target,1);
                     struct Code* code = newCode(__ADD,reg0,reg1,reg2,NULL);
                     linkcode(codelist,code);
                 }else{
+                    int reg0 = getReg(p->target,1);
                     struct Code* code = newCode(__ADDI,reg0,reg1,-1,&p->arg2[1]);
                     linkcode(codelist,code);
                 }
                 break;
             }
             case _MINUS:{
-                int reg0 = getReg(p->target);
-                int reg1 = getReg(p->arg1);
+                int reg1 = getReg(p->arg1,0);
                 if (p->arg2[0] != '#'){
-                    int reg2 = getReg(p->arg2);
+                    int reg2 = getReg(p->arg2,0);
+                    int reg0 = getReg(p->target,1);
                     struct Code* code = newCode(__SUB,reg0,reg1,reg2,NULL);
                     linkcode(codelist,code);
                 }else{
+                    int reg0 = getReg(p->target,1);
                     char arg[20];
                     sprintf(arg,"-%s",&p->arg2[1]);
                     struct Code* code = newCode(__ADDI,reg0,reg1,-1,arg);
@@ -181,51 +412,55 @@ int start(){
                 break;
             }
             case _STAR:{
-                int reg0 = getReg(p->target);
-                int reg1 = getReg(p->arg1);
-                int reg2 = getReg(p->arg2);
+                int reg1 = getReg(p->arg1,0);
+                int reg2 = getReg(p->arg2,0);
+                int reg0 = getReg(p->target,1);
                 struct Code* code = newCode(__MUL,reg0,reg1,reg2,NULL);
                 linkcode(codelist,code);
                 break;
             }
             case _DIV:{
-                int reg0 = getReg(p->target);
-                int reg1 = getReg(p->arg1);
-                int reg2 = getReg(p->arg2);
+                int reg1 = getReg(p->arg1,0);
+                int reg2 = getReg(p->arg2,0);
+                int reg0 = getReg(p->target,1);
                 struct Code* code1 = newCode(__DIV,reg1,reg2,-1,NULL);
                 struct Code* code2 = newCode(__MFLO,reg0,-1,-1,NULL);
                 linkcode(codelist,linkcode(code1,code2));
                 break;
             }
             case _GETADDR:{
-                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                int reg2 = getReg(p->arg1,0);
+                int reg1 = getReg(p->target,1);
+                struct Code* code = newCode(__MOVE,reg1,reg2,-1,NULL);
                 linkcode(codelist,code);
                 //fprintf(file,"%s := &%s\n",instrlist->target,instrlist->arg1);
                 break;
             }
             case _GETVALUE:{
-                int reg1 = getReg(p->target);
-                int reg2 = getReg(p->arg1);
+                int reg2 = getReg(p->arg1,0);
+                int reg1 = getReg(p->target,1);
                 struct Code* code = newCode(__LW,reg1,reg2,-1,NULL);
                 linkcode(codelist,code);
                 break;
             }
             case _ASSIGNOP_GETVALUE:{
-                int reg1 = getReg(p->arg1);
-                int reg2 = getReg(p->target);
+                int reg1 = getReg(p->arg1,0);
+                int reg2 = getReg(p->target,1);
                 struct Code* code = newCode(__SW,reg1,reg2,-1,NULL);
                 linkcode(codelist,code);
                 break;
             }
             case _GOTO:{
+                saveAllReg();
                 struct Code* code = newCode(__J,-1,-1,-1,p->arg1);
                 linkcode(codelist,code);
                 break;
             }
             case _IF:{
                 struct Code* code = NULL;
-                int reg1 = getReg(p->arg1);
-                int reg2 = getReg(p->arg2);
+                int reg1 = getReg(p->arg1,0);
+                int reg2 = getReg(p->arg2,0);
+                //printVarReg();
                 if (strcmp(p->op,"==") == 0){
                     code = newCode(__BEQ,reg1,reg2,-1,p->target);
                 }else if (strcmp(p->op,"!=") == 0){
@@ -239,6 +474,7 @@ int start(){
                 }else if (strcmp(p->op,"<=") == 0){
                     code = newCode(__BLE,reg1,reg2,-1,p->target);
                 }
+                linkcode(codelist,code);
                 break;
             }
             case _RETURN:{
@@ -248,7 +484,7 @@ int start(){
                 if (p->arg1[0] == '#'){
                     code1 = newCode(__LI,reg2,-1,-1,&p->arg1[1]);
                 }else{
-                    int reg1 = getReg(p->arg1);
+                    int reg1 = getReg(p->arg1,0);
                     code1 = newCode(__MOVE,reg2,reg1,-1,NULL);
                 }
                 
@@ -257,7 +493,15 @@ int start(){
                 break;
             }
             case _DEC:{
-                struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
+                struct Code* code = NULL;
+                int reg1 = convertreg("$sp");
+                char size[20];
+                
+                sprintf(size,"-%d",atoi(p->arg2));
+                code = newCode(__ADDI,reg1,reg1,-1,size);
+                linkcode(codelist,code);
+                int reg2 = getReg(p->arg1,0);
+                code = newCode(__MOVE,reg2,reg1,-1,NULL);
                 linkcode(codelist,code);
                 //fprintf(file,"DEC %s %s\n",instrlist->arg1,instrlist->arg2);
                 break;
@@ -270,7 +514,7 @@ int start(){
             }
             case _CALL:{
                 struct Code* code1 = newCode(__JAL,-1,-1,-1,p->arg1);
-                int reg1 = getReg(p->target);
+                int reg1 = getReg(p->target,1);
                 int reg2 = convertreg("$v0");
                 struct Code* code2 = newCode(__MOVE,reg1,reg2,-1,NULL);
                 linkcode(codelist,linkcode(code1,code2));
@@ -286,7 +530,7 @@ int start(){
                 struct Code* code = NULL;
                 int reg1 = convertreg("$sp");
                 int reg2 = convertreg("$ra");
-                int reg3 = getReg(p->arg1);
+                int reg3 = getReg(p->arg1,1);
                 int reg4 = convertreg("$v0");
                 code = newCode(__ADDI,reg1,reg1,-1,"-4");
                 linkcode(codelist,code);
@@ -299,6 +543,7 @@ int start(){
                 code = newCode(__ADDI,reg1,reg1,-1,"4");
                 linkcode(codelist,code);
                 code = newCode(__MOVE,reg3,reg4,-1,NULL);
+                linkcode(codelist,code);
                 break;
             }
             case _WRITE:{
@@ -306,7 +551,7 @@ int start(){
                 int reg1 = convertreg("$sp");
                 int reg2 = convertreg("$ra");
                 int reg3 = convertreg("$a0");
-                int reg4 = getReg(p->arg1);
+                int reg4 = getReg(p->arg1,0);
                 code = newCode(__MOVE,reg3,reg4,-1,NULL);
                 linkcode(codelist,code);
                 code = newCode(__ADDI,reg1,reg1,-1,"-4");

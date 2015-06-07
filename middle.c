@@ -335,8 +335,11 @@ struct Instr* cal_offset(struct treeNode* node,char *offset){
         if (strcmp(var->name,id->value) == 0){
             char* addrvname = NULL;
             if (var->vtype == 0){
-                addrvname = (char*)malloc(20);
-                sprintf(addrvname,"&%s",var->vname);
+                //addrvname = (char*)malloc(20);
+                //sprintf(addrvname,"&%s",var->vname);
+                addrvname = newTemp();
+                struct Instr* code2 = generate_instr(_GETADDR,var->vname,NULL,addrvname,NULL);
+                code1 = linkCode(code1,code2);
             }else addrvname = var->vname;
             struct Instr* code2 = generate_instr(_ASSIGNOP,addrvname,NULL,offset,NULL);
             code1 = linkCode(code1,code2);
