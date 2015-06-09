@@ -956,6 +956,26 @@ void fast1(){
         p = p->next;
     }
 }
+void fast12(){
+    //fast1 to deal with t = v ARG &t, it is not only for speed. t is 4 bit, v can be more. so t = v is error. so it is 
+    //nessary to replace ARG &t with ARG &v
+    struct Instr* p = instrlist;
+    while(p != NULL){
+        if (p->type == _ASSIGNOP && p->target[0] == 't' && p->arg1[0] == 'v'){
+            struct Instr* pp = p;
+            while(pp != NULL){
+                if (pp->type == _ARG && strcmp(&pp->arg1[1],p->target) == 0){
+                    strcpy(&pp->arg1[1],p->arg1);
+                }else if (pp->type == _ARG && strcmp(pp->arg1,p->target) == 0){
+                    strcpy(pp->arg1,p->arg1);
+                } 
+                pp = pp->next;
+            }
+        }
+        p = p->next;
+    }
+    
+}
 void fast2(){
     //deal with GOTO
     struct Instr* p = instrlist;
@@ -1140,7 +1160,7 @@ int middle(struct treeNode* root){
     
     instrlist = translate(root->sonlist);
     printf("start optimize middle code 1...\n");
-    fast1();
+    fast12();
     printf("start optimize middle code 2...\n");
     fast2();
     printf("start optimize middle code 3...\n");

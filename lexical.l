@@ -218,9 +218,11 @@ MCOMMENT {LCOMMENT}{RCOMMENT}
     occurError++;
     return INT;
 }
+"\t" {}
+
 . {
-    occurError++;
-    printf("Error type A at Line %d: Mysterious character \"%s\".\n",yylineno,yytext);
+    //occurError++;
+    //printf("Error type A at Line %d: Mysterious character \"%s\".\n",yylineno,yytext);
 }
 %%
 /*

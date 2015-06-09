@@ -36,7 +36,7 @@ int checkmean(struct treeNode* root);
 %nonassoc ELSE 
 %%
 
-Program : ExtDefList {$$ = createNode(@$.first_line,"Program",1,$1); if (occurError == 0) {/*printTree($$,0);*/ /*checkmean($$);*/ middle($$); destination();}}
+Program : ExtDefList {$$ = createNode(@$.first_line,"Program",1,$1); if (occurError == 0) {/*printTree($$,0);*/ /*checkmean($$);*/ middle($$);/* destination();*/}}
   /*| LCOMMENT RCOMMENT ExtDefList {$$ = createNode(@$.first_line,"Program",1,$3); if (occurError == 0)printTree($$,0);}*/
   | error ExtDefList {}
 ;
