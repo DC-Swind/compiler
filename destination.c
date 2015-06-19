@@ -305,6 +305,7 @@ int start(){
                 
                 int offset = 4;
                 struct Instr *pp = p;
+                //遇到RETURN STOP
                 while(pp!=NULL && pp->type!=_RETURN){
                     if(pp->type==_ASSIGNOP||pp->type==_ADD||pp->type==_MINUS||pp->type==_STAR||pp->type==_DIV||pp->type==_GETVALUE||pp->type==_GETADDR||pp->type==_CALL){
                         struct VarReg* var = varreg;
