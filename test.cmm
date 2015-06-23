@@ -1,21 +1,26 @@
-
-int add(int aa,int bb){
+int addfunc(int aa,int bb){
     int cc = aa + bb;
     return cc;
 }
+
+int subfunc(int c0,int c1,int c2,int c3,int c4,int c5,int c6,int c7){
+    int ee = c0 - c1 - c2 - c3 - c4 - c5 - c6 -c7;
+    return ee;
+}
+
 int main(){
     int a = 0, b = 1, i = 0, n;
-    int arr[10];
-    arr[3] = 1;
-    write(arr[3]);
+    
     n = read();
     while (i < n){
-        int c = add(a,b);
+        int c = addfunc(a,b);
         write(b);
         a = b;
         b = c;
         i = i + 1;
     }
+    n = subfunc(i,1,2,3,4,5,6,7);
+    write(n);
     return 0;
 }
 

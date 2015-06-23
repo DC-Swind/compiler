@@ -53,6 +53,8 @@ struct Data{
 struct Code *codelist = NULL;
 struct Data *datalist = NULL;
 int allocatetime = 0;
+int argna = 0;
+int argnb = 0;
 struct VarReg{
     char* var;  //v1 or t1
     int reg;    //reg
@@ -73,12 +75,26 @@ int printVarReg(){
     printf("-------------------------------------\n");
     return 0;
 }
+int clearReg(){
+    struct VarReg* p = varreg;
+    while(p != NULL){
+        p->reg = -1;
+        p = p->next;
+    }
+    int i;
+    for(i=8; i<23; i++) regf[i] = 0;
+    return 0;
+}
 int saveAllReg(){
     
     struct VarReg* p = varreg;
     while(p != NULL){
         if (p->reg != -1){
-            if (p->var[0] == '#') printf("saveAllReg occured error.\n");
+            if (p->var[0] == '#') {
+                //printf("saveAllReg occured error.p->var is %s\n",p->var);
+                p = p->next;
+                continue;
+            }
             struct Code* code = NULL;
             int reg = convertreg("$fp");
             char arg[20];
@@ -215,6 +231,7 @@ int getReg(char* varname,int target){
     min->reg = -1;
     if (target == 0){
         //printf();
+        
         struct Code* code = NULL;
         int reg = convertreg("$fp");
         char arg[20];
@@ -223,6 +240,7 @@ int getReg(char* varname,int target){
         linkcode(codelist,code);
         code = newCode(__LW,p->reg,24,-1,NULL);
         linkcode(codelist,code);
+        
     }
     
     
@@ -237,7 +255,10 @@ int convertreg(char* name){
     if (strcmp(name,"$fp") == 0) return 30;
     if (strcmp(name,"$ra") == 0) return 31;
     if (strcmp(name,"$a0") == 0) return 4;
-    printf("%s\n",name);
+    if (strcmp(name,"$a1") == 0) return 5;
+    if (strcmp(name,"$a2") == 0) return 6;
+    if (strcmp(name,"$a3") == 0) return 7;
+    printf("convert: %s\n",name);
     return -1;
 }
 char* regToString(int i){
@@ -296,6 +317,7 @@ int start(){
                 break;
             }
             case _FUNCTION:{
+                argnb = 0;
                 struct Code* code = newCode(__FUNC,-1,-1,-1,p->arg1);
                 linkcode(codelist,code);
                 int reg1 = convertreg("$fp");
@@ -359,6 +381,34 @@ int start(){
                                 offset += 4;
                             }
                         }
+                    }else if (pp->type == _PARAM){
+                        argna++;
+                        argnb++;
+                        struct VarReg* var = varreg;
+                        struct VarReg* newvar = malloc(sizeof(struct VarReg));
+                        newvar->var = malloc(20);
+                        strcpy(newvar->var,pp->arg1);
+                        newvar->reg = -1;
+                        newvar->stackoffset = offset;
+                        newvar->next = NULL;
+                        
+                        int flag = 1;
+                        if(varreg == NULL){
+                            varreg = newvar;
+                            offset += 4;
+                        }else{
+                            while(var->next != NULL){
+                                if(strcmp(var->var,newvar->var) == 0){
+                                    flag = 0;
+                                    break;
+                                }
+                                var = var->next;
+                            }
+                            if (flag && strcmp(var->var,newvar->var) != 0){
+                                var->next = newvar;
+                                offset += 4;
+                            }
+                        }
                     }
                     pp = pp->next;
                 }
@@ -366,7 +416,6 @@ int start(){
                 sprintf(arg,"-%d",offset-4);
                 code = newCode(__ADDI,reg2,reg2,-1,arg);
                 linkcode(codelist,code);
-                
                 break;
             }
             case _ASSIGNOP:{
@@ -488,9 +537,15 @@ int start(){
                     int reg1 = getReg(p->arg1,0);
                     code1 = newCode(__MOVE,reg2,reg1,-1,NULL);
                 }
+                //move $fp to sp
+                int reg01 = convertreg("$fp");
+                int reg02 = convertreg("$sp");
+                struct Code* code = newCode(__MOVE,reg02,reg01,-1,NULL);
+                linkcode(codelist,code);
                 
                 struct Code* code2 = newCode(__JR,reg3,-1,-1,NULL);
                 linkcode(codelist,linkcode(code1,code2));
+                clearReg();
                 break;
             }
             case _DEC:{
@@ -508,23 +563,109 @@ int start(){
                 break;
             }
             case _ARG:{
+                /*
                 struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
                 linkcode(codelist,code);
-                //fprintf(file,"ARG %s\n",instrlist->arg1);
+                break;
+                */
+                //第一个ARG存$ra,$fp
+                if (argna == 0){
+                    struct Code* code0 = NULL;
+                    int reg01 = convertreg("$sp");
+                    int reg02 = convertreg("$ra");
+                    int reg03 = convertreg("$fp");
+                    code0 = newCode(__ADDI,reg01,reg01,-1,"-4");
+                    linkcode(codelist,code0);
+                    code0 = newCode(__SW,reg02,reg01,-1,NULL);
+                    linkcode(codelist,code0);
+                    code0 = newCode(__ADDI,reg01,reg01,-1,"-4");
+                    linkcode(codelist,code0);
+                    code0 = newCode(__SW,reg03,reg01,-1,NULL);
+                    linkcode(codelist,code0);
+                }
+                
+                int reg1 = getReg(p->arg1,0);
+                if (argna <4){
+                    char argreg[20];
+                    sprintf(argreg,"$a%d",argna);
+                    int reg2 = convertreg(argreg);
+                    struct Code* code1 = newCode(__MOVE,reg2,reg1,-1,NULL);
+                    linkcode(codelist,code1);
+                }else{
+                    int reg2 = convertreg("$sp");
+                    
+                    struct Code* code = NULL;
+                    code = newCode(__ADDI,reg2,reg2,-1,"-4");
+                    linkcode(codelist,code);
+                    code = newCode(__SW,reg1,reg2,-1,NULL);
+                    linkcode(codelist,code);
+                    
+                }
+                argna++;
                 break;
             }
             case _CALL:{
+                int argnc = argna - 4;
+                argna = 0;
+                saveAllReg();
                 struct Code* code1 = newCode(__JAL,-1,-1,-1,p->arg1);
+                linkcode(codelist,code1);
+                //clean arg%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                int reg3 = convertreg("$sp");
+                if (argnc > 0){
+                    char offset[20];
+                    sprintf(offset,"%d",argnc*4);
+                    struct Code* code = newCode(__ADDI,reg3,reg3,-1,offset);
+                    linkcode(codelist,code);
+                }
+                //after clear arg, load $ra,$fp
+                int reg4 = convertreg("$ra");
+                int reg5 = convertreg("$fp");
+                struct Code* code = NULL;
+                code = newCode(__LW,reg5,reg3,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__ADDI,reg3,reg3,-1,"4");
+                linkcode(codelist,code);
+                code = newCode(__LW,reg4,reg3,-1,NULL);
+                linkcode(codelist,code);
+                code = newCode(__ADDI,reg3,reg3,-1,"4");
+                linkcode(codelist,code);
+
+                
+                //return value
                 int reg1 = getReg(p->target,1);
                 int reg2 = convertreg("$v0");
                 struct Code* code2 = newCode(__MOVE,reg1,reg2,-1,NULL);
-                linkcode(codelist,linkcode(code1,code2));
+                linkcode(codelist,code2);
                 break;
             }
             case _PARAM:{
+                /*
                 struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
                 linkcode(codelist,code);
-                //fprintf(file,"PARAM %s\n",instrlist->arg1);
+                break;
+                */
+                
+                int reg1 = getReg(p->arg1,1);
+                if (argna > 4){
+                    int reg2 = convertreg("$fp");
+                    int reg3 = 24;
+                    char offset[20];
+                    sprintf(offset,"%d",(argnb-argna)*4);
+                    struct Code* code = NULL;
+                    code = newCode(__ADDI,reg3,reg2,-1,offset);
+                    linkcode(codelist,code);
+                    code = newCode(__LW,reg1,reg3,-1,NULL);
+                    linkcode(codelist,code);
+                }else{
+                    char offset[20];
+                    sprintf(offset,"$a%d",argna-1);
+                    int reg2 = convertreg(offset);
+                    struct Code* code = newCode(__MOVE,reg1,reg2,-1,NULL);
+                    linkcode(codelist,code);
+                }
+                argna--;
+                
                 break;
             }
             case _READ:{
