@@ -35,7 +35,6 @@
 #define __TEXT 104
 
 #define __UNDEFINED 200
-FILE *dest = NULL;
 struct Code{
     int type;
     int reg1;
@@ -739,7 +738,6 @@ int start(){
 
 int init_destination(){
     int i;
-    dest = fopen("dest.s","w+");
     struct Code* code = NULL;
     struct Data* data = NULL;
     for(i=0; i<32; i++) regf[i] = 0;

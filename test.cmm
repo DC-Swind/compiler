@@ -1,20 +1,4 @@
-int main()
-{
-    int a = 3, b = 4, c;
-    c = a * a + b * b;
-    write(c);
-    c = (a + c) / b;
-    write(c);
-    a = a + b;
-    b = a - b;
-    a = a - b;
-    b = ((a - b) * 2 - 1) + (a / b) * (2 * (3 + b));
-    write(a);
-    write(b);
-    return 0;
-}
 
-/*
 int addfunc(int aa,int bb){
     int cc = aa + bb;
     return cc;
@@ -27,7 +11,6 @@ int subfunc(int c0,int c1,int c2,int c3,int c4,int c5,int c6,int c7){
 
 int main(){
     int a = 0, b = 1, i = 0, n;
-    
     n = read();
     while (i < n){
         int c = addfunc(a,b);
@@ -40,7 +23,7 @@ int main(){
     write(n);
     return 0;
 }
-*/
+
 /*int func(int a[10]){
 
 }

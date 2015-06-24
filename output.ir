@@ -1,46 +1,42 @@
-FUNCTION add :
+FUNCTION addfunc :
 PARAM v1
-t4 := #0 * #4
-t2 := v1 + t4
-t2 := *t2
-t5 := #1 * #4
-t3 := v1 + t5
-t3 := *t3
-t1 := t2 + t3
-RETURN t1
+PARAM v2
+v3 := v1 + v2
+RETURN v3
+FUNCTION subfunc :
+PARAM v4
+PARAM v5
+PARAM v6
+PARAM v7
+PARAM v8
+PARAM v9
+PARAM v10
+PARAM v11
+t16 := v4 - v5
+t14 := t16 - v6
+t12 := t14 - v7
+t10 := t12 - v8
+t8 := t10 - v9
+t6 := t8 - v10
+v12 := t6 - v11
+RETURN v12
 FUNCTION main :
-DEC v2 8
-DEC v3 16
-v4 := #0
-v5 := #0
+v13 := #0
+v14 := #1
+v15 := #0
+READ t24
+v16 := t24
 LABEL label1 :
-IF v4 >= #2 GOTO label3
-LABEL label4 :
-IF v5 >= #2 GOTO label6
-t13 := v5 * #4
-t12 := &v2 + t13
-t14 := v4 + v5
-*t12 := t14
-t17 := v5 + #1
-v5 := t17
-GOTO label4
-LABEL label6 :
-t21 := v4 * #4
-t20 := &v3 + t21
-t22 := #1 * #8
-t20 := t20 + t22
-ARG &v2
-t23 := CALL add
-*t20 := t23
-t27 := v4 * #4
-t26 := &v3 + t27
-t28 := #1 * #8
-t26 := t26 + t28
-t26 := *t26
-WRITE t26
-t29 := v4 + #1
-v4 := t29
-v5 := #0
+IF v15 >= v16 GOTO label3
+ARG v14
+ARG v13
+t27 := CALL addfunc
+v17 := t27
+WRITE v14
+v13 := v14
+v14 := v17
+v15 := v15 + #1
 GOTO label1
 LABEL label3 :
+WRITE v16
 RETURN #0
