@@ -92,6 +92,8 @@ int saveAllReg(){
         if (p->reg != -1){
             if (p->var[0] == '#') {
                 //printf("saveAllReg occured error.p->var is %s\n",p->var);
+                regf[p->reg] = 0;
+                p->reg = -1;
                 p = p->next;
                 continue;
             }
@@ -118,11 +120,16 @@ int getReg(char* varname,int target){
     struct VarReg* p = varreg;
     struct VarReg* tail = NULL;
     while(p != NULL){
-        if (strcmp(p->var,varname) == 0) break;
         tail = p;
         p = p->next;
     }
+    p = varreg;
+    while(p != NULL){
+        if (strcmp(p->var,varname) == 0) break;
+        p = p->next;
+    }
     if(p != NULL && p->reg != -1) return p->reg;
+
     
     
     if (varname[0] == '#'){
@@ -136,7 +143,7 @@ int getReg(char* varname,int target){
         int i,mintime = 999999999;
         struct VarReg* min = NULL;
         struct VarReg* minpre = NULL;
-        for(i = 8; i<12; i++) if (regf[i] == 0){
+        for(i = 8; i<23; i++) if (regf[i] == 0){
             newvar->reg = i;
             if(varreg == NULL) varreg = newvar;
             else tail->next = newvar;
@@ -176,10 +183,14 @@ int getReg(char* varname,int target){
         min->reg = -1;
         return newvar->reg;
     }
-    p->time = allocatetime++;
     
+    if (p == NULL){
+        printf("getReg occured error: p is null\n");
+    }
+    p->time = allocatetime++;
+
     int i;
-    for(i = 8; i<12; i++) if (regf[i] == 0){
+    for(i = 8; i<23; i++) if (regf[i] == 0){
         p->reg = i;
         regf[i] = 1;
         
@@ -196,12 +207,13 @@ int getReg(char* varname,int target){
     
         return p->reg;
     }
-    
+
     
     int mintime = 999999999;
     struct VarReg *min = NULL;
     struct VarReg *minpre = NULL;
     struct VarReg *pp = varreg;
+    
     while(pp != NULL){
         if (pp->reg != -1 && pp->time < mintime){
             mintime = pp->time;
@@ -209,9 +221,10 @@ int getReg(char* varname,int target){
         }
         pp = pp->next;
     }
+
     //printf("old:%s,%d   new:%s,%d    target:%d\n",min->var,min->reg,p->var,p->reg,target);
     p->reg = min->reg;
-        
+
     if(min->var[0] == '#'){
         minpre = varreg;
         while(minpre->next != min) minpre = minpre->next;
@@ -317,6 +330,7 @@ int start(){
                 break;
             }
             case _FUNCTION:{
+                //printf("func:%s\n",p->arg1);
                 argnb = 0;
                 struct Code* code = newCode(__FUNC,-1,-1,-1,p->arg1);
                 linkcode(codelist,code);
@@ -326,9 +340,9 @@ int start(){
                 linkcode(codelist,code);
                 
                 int offset = 4;
-                struct Instr *pp = p;
-                //遇到RETURN STOP
-                while(pp!=NULL && pp->type!=_RETURN){
+                struct Instr *pp = p->next;
+                //遇到RETURN STOP,ERROr,不能到return stop，如果多个return会出问题，所以到func结束
+                while(pp!=NULL && pp->type!=_FUNCTION){
                     if(pp->type==_ASSIGNOP||pp->type==_ADD||pp->type==_MINUS||pp->type==_STAR||pp->type==_DIV||pp->type==_GETVALUE||pp->type==_GETADDR||pp->type==_CALL){
                         struct VarReg* var = varreg;
                         struct VarReg* newvar = malloc(sizeof(struct VarReg));
@@ -416,6 +430,8 @@ int start(){
                 sprintf(arg,"-%d",offset-4);
                 code = newCode(__ADDI,reg2,reg2,-1,arg);
                 linkcode(codelist,code);
+                //printVarReg();
+                //printf("func end\n");
                 break;
             }
             case _ASSIGNOP:{
@@ -511,6 +527,7 @@ int start(){
                 int reg1 = getReg(p->arg1,0);
                 int reg2 = getReg(p->arg2,0);
                 //printVarReg();
+                saveAllReg();
                 if (strcmp(p->op,"==") == 0){
                     code = newCode(__BEQ,reg1,reg2,-1,p->target);
                 }else if (strcmp(p->op,"!=") == 0){
@@ -525,6 +542,7 @@ int start(){
                     code = newCode(__BLE,reg1,reg2,-1,p->target);
                 }
                 linkcode(codelist,code);
+                //printf("IF\n");
                 break;
             }
             case _RETURN:{
@@ -563,6 +581,7 @@ int start(){
                 break;
             }
             case _ARG:{
+               
                 /*
                 struct Code* code = newCode(__UNDEFINED,-1,-1,-1,NULL);
                 linkcode(codelist,code);
@@ -583,8 +602,9 @@ int start(){
                     code0 = newCode(__SW,reg03,reg01,-1,NULL);
                     linkcode(codelist,code0);
                 }
-                
+
                 int reg1 = getReg(p->arg1,0);
+
                 if (argna <4){
                     char argreg[20];
                     sprintf(argreg,"$a%d",argna);
@@ -601,10 +621,12 @@ int start(){
                     linkcode(codelist,code);
                     
                 }
+
                 argna++;
                 break;
             }
             case _CALL:{
+
                 int argnc = argna - 4;
                 argna = 0;
                 saveAllReg();
@@ -637,6 +659,7 @@ int start(){
                 int reg2 = convertreg("$v0");
                 struct Code* code2 = newCode(__MOVE,reg1,reg2,-1,NULL);
                 linkcode(codelist,code2);
+
                 break;
             }
             case _PARAM:{

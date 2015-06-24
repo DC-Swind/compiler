@@ -1479,7 +1479,7 @@ yyreduce:
     {
         case 2:
 #line 39 "syntax.y" /* yacc.c:1646  */
-    {(yyval) = createNode((yyloc).first_line,"Program",1,(yyvsp[0])); if (occurError == 0) {/*printTree($$,0);*/ /*checkmean($$);*/ middle((yyval)); destination();}}
+    {(yyval) = createNode((yyloc).first_line,"Program",1,(yyvsp[0])); if (1) {/*printTree($$,0);*/ /*checkmean($$);*/ middle((yyval)); destination();}}
 #line 1484 "syntax.tab.c" /* yacc.c:1646  */
     break;
 
